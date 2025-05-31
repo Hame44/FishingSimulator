@@ -18,6 +18,6 @@ public class Perch : Fish
 
     public override IFightBehavior GetFightBehavior()
     {
-        return new CarpFightBehavior(this); // можна створити окремий PerchFightBehavior
+        return new PerchFightBehavior(this);
     }
 }
