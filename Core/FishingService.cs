@@ -11,6 +11,10 @@ public class FishingService : MonoBehaviour, IFishingService
     private FishingSession currentSession;
     private Player currentPlayer;
     
+    // Поточна корутіна для управління спавном риби
+    private Coroutine fishSpawnCoroutine;
+    private Coroutine biteCoroutine;
+    
     void Awake()
     {
         playerRepository = new PlayerRepository("");
@@ -29,10 +33,16 @@ public class FishingService : MonoBehaviour, IFishingService
     public void StartFishing(Player player)
     {
         currentPlayer = player;
-        currentSession = new FishingSession();
-        currentSession.OnFishingComplete += OnFishingComplete;
-        currentSession.StartSession();
         
+        // Створюємо нову сесію якщо її немає
+        if (currentSession == null)
+        {
+            currentSession = new FishingSession();
+            currentSession.OnFishingComplete += OnFishingComplete;
+            currentSession.OnStateChanged += OnStateChanged;
+        }
+        
+        currentSession.StartSession();
         Debug.Log("Риболовля почалася!");
         
         // Запускаємо логіку появи риби
@@ -42,14 +52,20 @@ public class FishingService : MonoBehaviour, IFishingService
     public void StopFishing()
     {
         StopAllCoroutines();
+        fishSpawnCoroutine = null;
+        biteCoroutine = null;
+        
         currentSession?.EndSession();
-        currentSession = null;
         Debug.Log("Риболовля зупинена");
     }
     
     public void HandlePlayerAction(FishingAction action)
     {
-        if (currentSession == null) return;
+        if (currentSession == null || currentPlayer == null) 
+        {
+            Debug.LogWarning("No active fishing session");
+            return;
+        }
         
         Debug.Log($"Дія гравця: {action}, Поточний стан: {currentSession.State}");
         
@@ -84,14 +100,27 @@ public class FishingService : MonoBehaviour, IFishingService
         if (currentSession.State == FishingState.Biting)
         {
             Debug.Log("Успішне підсікання!");
-            currentSession.Hook();
-            currentSession.StartFight();
+            bool hooked = currentSession.TryHook();
+            if (hooked)
+            {
+                // Зупиняємо корутіну клювання
+                if (biteCoroutine != null)
+                {
+                    StopCoroutine(biteCoroutine);
+                    biteCoroutine = null;
+                }
+                currentSession.StartFight();
+            }
         }
         else if (currentSession.State == FishingState.Waiting)
         {
             Debug.Log("Передчасне підсікання - штраф часу");
             // Затримка до наступної поклювки
-            StartCoroutine(DelayNextFish(UnityEngine.Random.Range(10f, 20f)));
+            if (fishSpawnCoroutine != null)
+            {
+                StopCoroutine(fishSpawnCoroutine);
+            }
+            fishSpawnCoroutine = StartCoroutine(DelayNextFish(UnityEngine.Random.Range(10f, 20f)));
         }
         else
         {
@@ -103,7 +132,7 @@ public class FishingService : MonoBehaviour, IFishingService
     {
         if (currentSession.State == FishingState.Fighting)
         {
-            Debug.Log("Тягнемо рибу...");
+            Debug.Log("Процес боротьби з рибою...");
             ProcessFight();
         }
         else
@@ -177,7 +206,11 @@ public class FishingService : MonoBehaviour, IFishingService
     {
         if (currentSession?.State == FishingState.Waiting)
         {
-            StartCoroutine(SpawnFishCoroutine());
+            if (fishSpawnCoroutine != null)
+            {
+                StopCoroutine(fishSpawnCoroutine);
+            }
+            fishSpawnCoroutine = StartCoroutine(SpawnFishCoroutine());
         }
     }
     
@@ -194,6 +227,8 @@ public class FishingService : MonoBehaviour, IFishingService
         {
             SpawnFish();
         }
+        
+        fishSpawnCoroutine = null;
     }
     
     private void SpawnFish()
@@ -220,13 +255,19 @@ public class FishingService : MonoBehaviour, IFishingService
             
             // Запускаємо поведінку клювання
             var biteBehavior = newFish.GetBiteBehavior();
-            StartCoroutine(ExecuteBiteCoroutine(biteBehavior));
+            biteCoroutine = StartCoroutine(ExecuteBiteCoroutine(biteBehavior));
         }
     }
     
     private IEnumerator ExecuteBiteCoroutine(IBiteBehavior biteBehavior)
     {
         Debug.Log($"{currentSession.CurrentFish.FishType} клює! Тривалість: {biteBehavior.BiteDuration:F1}с");
+        
+        // Виконуємо логіку початку клювання
+        biteBehavior.ExecuteBite(
+            () => Debug.Log("Клювання почалося!"),
+            () => Debug.Log("Клювання закінчилося!")
+        );
         
         // Чекаємо час клювання
         yield return new WaitForSeconds(biteBehavior.BiteDuration);
@@ -238,6 +279,8 @@ public class FishingService : MonoBehaviour, IFishingService
             // Гравець не встиг засікти - перевіряємо повторне клювання
             CheckForRebite(biteBehavior);
         }
+        
+        biteCoroutine = null;
     }
     
     private void UpdateFactoryLuckModifier(FishFactory factory, float luck)
@@ -253,43 +296,32 @@ public class FishingService : MonoBehaviour, IFishingService
         {
             Debug.Log($"Риба клюне знову через {biteBehavior.RebiteDelay:F1}с");
             // Повторне клювання через короткий час
-            ScheduleRebite(biteBehavior.RebiteDelay);
+            StartCoroutine(RebiteCoroutine(biteBehavior.RebiteDelay));
         }
         else
         {
             Debug.Log("Риба втекла. Чекаємо наступну...");
             // Риба втекла, чекаємо наступну
-            currentSession.SetFish(null);
-            ScheduleNextFish(UnityEngine.Random.Range(15f, 45f));
+            currentSession.ResetToWaiting();
+            fishSpawnCoroutine = StartCoroutine(DelayNextFish(UnityEngine.Random.Range(15f, 45f)));
         }
-    }
-    
-    private void ScheduleRebite(float delay)
-    {
-        StartCoroutine(RebiteCoroutine(delay));
     }
     
     private IEnumerator RebiteCoroutine(float delay)
     {
-        // Повертаємо стан до очікування
-        if (currentSession != null)
-        {
-            currentSession.SetFish(null);
-        }
+        // Повертаємо стан до очікування але зберігаємо рибу
+        Fish savedFish = currentSession.CurrentFish;
+        currentSession.ResetToWaiting();
         
         yield return new WaitForSeconds(delay);
         
         // Повторне клювання тієї ж риби
-        if (currentSession?.State == FishingState.Waiting && currentSession.CurrentFish != null)
+        if (currentSession?.State == FishingState.Waiting && savedFish != null)
         {
-            var biteBehavior = currentSession.CurrentFish.GetBiteBehavior();
-            StartCoroutine(ExecuteBiteCoroutine(biteBehavior));
+            currentSession.SetFish(savedFish);
+            var biteBehavior = savedFish.GetBiteBehavior();
+            biteCoroutine = StartCoroutine(ExecuteBiteCoroutine(biteBehavior));
         }
-    }
-    
-    private void ScheduleNextFish(float delay)
-    {
-        StartCoroutine(DelayNextFish(delay));
     }
     
     private IEnumerator DelayNextFish(float delay)
@@ -300,6 +332,13 @@ public class FishingService : MonoBehaviour, IFishingService
         {
             StartFishSpawnLogic();
         }
+        
+        fishSpawnCoroutine = null;
+    }
+    
+    private void OnStateChanged(FishingState newState)
+    {
+        Debug.Log($"Fishing state changed to: {newState}");
     }
     
     private void OnFishingComplete(FishingResult result, Fish fish)
@@ -329,8 +368,7 @@ public class FishingService : MonoBehaviour, IFishingService
         
         if (currentSession != null)
         {
-            currentSession.EndSession();
-            currentSession = null;
+            currentSession.ResetToWaiting();
         }
         
         Debug.Log("Готовий до нового закидання!");
@@ -379,5 +417,10 @@ public class FishingService : MonoBehaviour, IFishingService
     public FishingSession GetCurrentSession()
     {
         return currentSession;
+    }
+    
+    void Update()
+    {
+        currentSession?.Update(Time.deltaTime);
     }
 }

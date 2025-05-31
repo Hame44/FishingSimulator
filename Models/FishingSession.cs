@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 
-// FishingSession.cs
 public enum FishingState
 {
     Waiting,
@@ -31,12 +30,16 @@ public class FishingSession
     
     public event Action<Fish> OnFishBite;
     public event Action<FishingResult, Fish> OnFishingComplete;
+    public event Action<FishingState> OnStateChanged;
     
     public void StartSession()
     {
         State = FishingState.Waiting;
         IsActive = true;
         SessionTime = 0f;
+        CurrentFish = null;
+        OnStateChanged?.Invoke(State);
+        Debug.Log("Fishing session started - Waiting for fish");
     }
     
     public void EndSession()
@@ -44,21 +47,42 @@ public class FishingSession
         IsActive = false;
         State = FishingState.Waiting;
         CurrentFish = null;
+        OnStateChanged?.Invoke(State);
+        Debug.Log("Fishing session ended");
     }
     
     public void SetFish(Fish fish)
     {
+        if (State != FishingState.Waiting)
+        {
+            Debug.LogWarning($"Cannot set fish in state: {State}");
+            return;
+        }
+        
         CurrentFish = fish;
         State = FishingState.Biting;
+        OnStateChanged?.Invoke(State);
         OnFishBite?.Invoke(fish);
+        Debug.Log($"Fish is biting: {fish?.FishType}");
     }
     
-    public void Hook()
+    public bool TryHook()
     {
-        if (State == FishingState.Biting)
+        if (State == FishingState.Biting && CurrentFish != null)
         {
             State = FishingState.Hooked;
+            OnStateChanged?.Invoke(State);
+            Debug.Log("Fish hooked successfully!");
+            return true;
         }
+        else if (State == FishingState.Waiting)
+        {
+            Debug.Log("Premature hook - no fish biting");
+            return false;
+        }
+        
+        Debug.LogWarning($"Cannot hook in state: {State}");
+        return false;
     }
     
     public void StartFight()
@@ -66,12 +90,38 @@ public class FishingSession
         if (State == FishingState.Hooked)
         {
             State = FishingState.Fighting;
+            OnStateChanged?.Invoke(State);
+            Debug.Log("Fight started!");
+        }
+        else
+        {
+            Debug.LogWarning($"Cannot start fight in state: {State}");
         }
     }
     
     public void CompleteFishing(FishingResult result)
     {
-        State = result == FishingResult.Success ? FishingState.Caught : FishingState.Escaped;
+        FishingState newState = result == FishingResult.Success ? FishingState.Caught : FishingState.Escaped;
+        State = newState;
+        OnStateChanged?.Invoke(State);
         OnFishingComplete?.Invoke(result, CurrentFish);
+        
+        Debug.Log($"Fishing completed: {result}, Fish: {CurrentFish?.FishType}");
+    }
+    
+    public void ResetToWaiting()
+    {
+        CurrentFish = null;
+        State = FishingState.Waiting;
+        OnStateChanged?.Invoke(State);
+        Debug.Log("Session reset to waiting");
+    }
+    
+    public void Update(float deltaTime)
+    {
+        if (IsActive)
+        {
+            SessionTime += deltaTime;
+        }
     }
 }
