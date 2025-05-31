@@ -1,3 +1,4 @@
+
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
@@ -33,10 +34,10 @@ public class FishingController : MonoBehaviour
     public AudioClip escapeSound;
     
     [Header("Float Animation")]
-    public float floatBobSpeed = 2f;
-    public float floatBobIntensity = 0.1f;
-    public float biteBobIntensity = 0.5f;
-    public float biteBobSpeed = 8f;
+    public float floatBobSpeed = 1.5f;
+    public float floatBobIntensity = 0.05f; // Зменшено силу коливань
+    public float biteBobIntensity = 0.15f; // Збільшено для клювання
+    public float biteBobSpeed = 6f;
     public AnimationCurve castCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     
     [Header("Fishing Parameters")]
@@ -57,15 +58,18 @@ public class FishingController : MonoBehaviour
     // Animation and visual state
     private Vector3 floatStartPosition;
     private Vector3 floatTargetPosition;
+    private Vector3 floatBasePosition; // Базова позиція для анімації
     private bool isFloatCast = false;
     private bool isFishBiting = false;
     private bool isReeling = false;
+    private bool isHooked = false; // Додано для контролю стану після підсікання
     
     // Fight mechanics
     private float currentFishDistance;
     private float fightTimer = 0f;
     private float tensionLevel = 0f;
     private Coroutine fightCoroutine;
+    private Coroutine floatBobCoroutine;
     
     // Performance optimization
     private readonly Dictionary<string, string> statusMessages = new Dictionary<string, string>
@@ -73,10 +77,12 @@ public class FishingController : MonoBehaviour
         ["cast"] = "Закидання вудки...",
         ["waiting"] = "Очікування риби...",
         ["biting"] = "КЛЮЄ! Натисніть 'Підсікти'!",
+        ["hooked"] = "Риба засічена! Натисніть 'Тягнути'!",
         ["fighting"] = "Тягніть рибу!",
         ["caught"] = "Риба піймана!",
         ["escaped"] = "Риба втекла...",
-        ["ready"] = "Готовий до нового закидання!"
+        ["ready"] = "Готовий до нового закидання!",
+        ["pulling_empty"] = "Витягування пустого поплавка..."
     };
     
     private WaitForSeconds shortDelay;
@@ -98,6 +104,7 @@ public class FishingController : MonoBehaviour
         CreatePlayer();
         InitializeVisuals();
         InitializeAudio();
+        UpdateUI(); // Додано для ініціалізації UI
     }
     
     void Update()
@@ -271,6 +278,39 @@ public class FishingController : MonoBehaviour
         }
     }
     
+    // Додана функція для витягування пустого поплавка
+    public void ReelInEmpty()
+    {
+        if (isFloatCast && !isHooked && !IsProcessingAction())
+        {
+            StartCoroutine(ReelInEmptyCoroutine());
+        }
+    }
+    
+    private IEnumerator ReelInEmptyCoroutine()
+    {
+        UpdateStatusText("pulling_empty");
+        isReeling = true;
+        
+        float reelTime = 2f;
+        float elapsed = 0f;
+        Vector3 startPos = floatObject.transform.position;
+        
+        while (elapsed < reelTime)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / reelTime;
+            
+            Vector3 currentPos = Vector3.Lerp(startPos, floatStartPosition, progress);
+            floatObject.transform.position = currentPos;
+            
+            yield return null;
+        }
+        
+        isReeling = false;
+        ResetFishing();
+    }
+    
     private IEnumerator CastLineCoroutine()
     {
         PlaySound(castSound);
@@ -282,7 +322,12 @@ public class FishingController : MonoBehaviour
         UpdateStatusText("waiting");
         UpdateButtonStates();
         
-        StartCoroutine(FloatBobbing());
+        // Запускаємо покачування поплавка
+        if (floatBobCoroutine != null)
+        {
+            StopCoroutine(floatBobCoroutine);
+        }
+        floatBobCoroutine = StartCoroutine(FloatBobbing());
     }
     
     public void HookOrPull()
@@ -290,12 +335,25 @@ public class FishingController : MonoBehaviour
         if (IsProcessingAction()) return;
         
         var session = fishingService.GetCurrentSession();
-        if (session == null) return;
+        if (session == null)
+        {
+            // Якщо сесії немає, але поплавок закинутий - витягуємо пустий
+            if (isFloatCast)
+            {
+                ReelInEmpty();
+            }
+            return;
+        }
         
         switch (session.State)
         {
             case FishingState.Biting:
                 PerformHook();
+                break;
+                
+            case FishingState.Hooked:
+                // Після підсікання почати боротьбу
+                StartFightFromHook();
                 break;
                 
             case FishingState.Fighting:
@@ -304,6 +362,14 @@ public class FishingController : MonoBehaviour
                 
             case FishingState.Waiting:
                 PerformPrematureHook();
+                break;
+                
+            default:
+                // Витягуємо пустий поплавок
+                if (isFloatCast)
+                {
+                    ReelInEmpty();
+                }
                 break;
         }
     }
@@ -315,19 +381,16 @@ public class FishingController : MonoBehaviour
         {
             PlaySound(catchSound);
             PlayEffect(biteEffect);
-        
-            UpdateStatusText("fighting");
-        
-            // Не запускаємо бій одразу, даємо час на реакцію
-            StartCoroutine(DelayedFightStart());
+            
+            isHooked = true;
+            isFishBiting = false;
+            UpdateStatusText("hooked");
+            UpdateButtonStates();
         }
     }
-
-    private IEnumerator DelayedFightStart()
-    {
-    // Коротка затримка перед початком боротьби
-        yield return new WaitForSeconds(0.5f);
     
+    private void StartFightFromHook()
+    {
         var session = fishingService.GetCurrentSession();
         if (session != null && session.State == FishingState.Hooked)
         {
@@ -362,6 +425,7 @@ public class FishingController : MonoBehaviour
         
         Vector3 castPosition = waterSurface.position + Vector3.right * castDistance;
         floatTargetPosition = castPosition;
+        floatBasePosition = castPosition; // Зберігаємо базову позицію
         
         float castTime = 1.5f;
         float elapsed = 0f;
@@ -383,28 +447,28 @@ public class FishingController : MonoBehaviour
         }
         
         floatObject.transform.position = castPosition;
+        floatBasePosition = castPosition;
         PlaySound(splashSound);
         PlayEffect(splashEffect);
     }
     
     private IEnumerator FloatBobbing()
     {
-        Vector3 basePosition = floatObject.transform.position;
-        float originalY = basePosition.y;
-        
-        while (isFloatCast && floatObject != null)
+        while (isFloatCast && floatObject != null && !isReeling)
         {
             if (isFishBiting)
             {
                 // Під час клювання поплавок рухається більш драматично
-                yield return StartCoroutine(BiteAnimation(basePosition));
+                yield return StartCoroutine(BiteAnimation());
             }
             else
             {
-                // Звичайне тихе покачування
-                float bobOffset = Mathf.Sin(Time.time * floatBobSpeed) * floatBobIntensity;
-                Vector3 newPos = basePosition;
-                newPos.y = originalY + bobOffset;
+                // Звичайне тихе покачування - в воду і назовні
+                float time = Time.time * floatBobSpeed;
+                float bobOffset = (Mathf.Sin(time) - 0.5f) * floatBobIntensity; // Зміщення вниз
+                
+                Vector3 newPos = floatBasePosition;
+                newPos.y += bobOffset;
                 floatObject.transform.position = newPos;
             }
             
@@ -413,28 +477,33 @@ public class FishingController : MonoBehaviour
         }
     }
 
-    private IEnumerator BiteAnimation(Vector3 basePosition)
+    private IEnumerator BiteAnimation()
     {
-        float biteTime = 0.5f; // Тривалість одного циклу клювання
+        float biteTime = 0.3f; // Тривалість одного циклу клювання
         float elapsed = 0f;
-    
-        while (elapsed < biteTime && isFishBiting)
+        
+        while (elapsed < biteTime && isFishBiting && !isHooked)
         {
             elapsed += Time.deltaTime;
             float progress = elapsed / biteTime;
-        
-            // Рух поплавка: спочатку в сторону, потім вниз
-            float sideMovement = Mathf.Sin(progress * Mathf.PI * 4) * 0.3f; // Рух в сторону
-            float downMovement = -Mathf.Sin(progress * Mathf.PI * 2) * biteBobIntensity; // Рух вниз
-        
-            Vector3 newPos = basePosition;
+            
+            // Більш драматичний рух під час клювання
+            float sideMovement = Mathf.Sin(progress * Mathf.PI * 6) * 0.2f;
+            float downMovement = -Mathf.Abs(Mathf.Sin(progress * Mathf.PI * 4)) * biteBobIntensity;
+            
+            Vector3 newPos = floatBasePosition;
             newPos.x += sideMovement;
             newPos.y += downMovement;
-        
+            
             floatObject.transform.position = newPos;
-            UpdateFishingLine();
-        
+            
             yield return null;
+        }
+        
+        // Повертаємо до базової позиції якщо не засічено
+        if (!isHooked && floatObject != null)
+        {
+            floatObject.transform.position = floatBasePosition;
         }
     }
     
@@ -444,6 +513,8 @@ public class FishingController : MonoBehaviour
         isReeling = true;
         fightTimer = 0f;
         tensionLevel = 0f;
+        
+        UpdateStatusText("fighting");
         
         if (progressBar != null)
         {
@@ -544,9 +615,8 @@ public class FishingController : MonoBehaviour
             if (floatObject != null)
             {
                 floatObject.transform.position = targetPos + fightOffset;
+                floatBasePosition = targetPos; // Оновлюємо базову позицію
             }
-        
-            UpdateStatusText($"Тягнемо рибу! Відстань: {currentFishDistance:F1}м (Опір: {fishResistance:F1})");
         
             // Перевірка завершення
             if (currentFishDistance <= 0.1f)
@@ -564,15 +634,22 @@ public class FishingController : MonoBehaviour
     {
         Debug.Log($"Fishing state changed to: {newState}");
         UpdateButtonStates();
+        UpdateInstructions();
         
         switch (newState)
         {
             case FishingState.Biting:
                 isFishBiting = true;
+                isHooked = false;
                 StartCoroutine(BiteTimerCoroutine());
+                break;
+            case FishingState.Hooked:
+                isFishBiting = false;
+                isHooked = true;
                 break;
             case FishingState.Fighting:
                 isFishBiting = false;
+                isHooked = true;
                 break;
             default:
                 isFishBiting = false;
@@ -655,6 +732,9 @@ public class FishingController : MonoBehaviour
             }
             ResetFishing();
         }
+        
+        // Оновлюємо UI постійно
+        UpdateUI();
     }
     
     private void UpdateVisualEffects()
@@ -678,10 +758,17 @@ public class FishingController : MonoBehaviour
     
     private void UpdateLineColor()
     {
-        if (fishingLine != null && isReeling)
+        if (fishingLine != null && fishingLine.material != null)
         {
-            Color lineColor = lineColorGradient.Evaluate(tensionLevel);
-            fishingLine.material.color = lineColor;
+            if (isReeling && tensionLevel > 0)
+            {
+                Color lineColor = lineColorGradient.Evaluate(tensionLevel);
+                fishingLine.material.color = lineColor;
+            }
+            else
+            {
+                fishingLine.material.color = normalLineColor;
+            }
         }
     }
     
@@ -721,19 +808,36 @@ public class FishingController : MonoBehaviour
         
         if (releaseButton != null)
         {
-            bool canRelease = session?.State == FishingState.Hooked || 
-                             session?.State == FishingState.Fighting;
+            bool canRelease = (session?.State == FishingState.Hooked || 
+                             session?.State == FishingState.Fighting) ||
+                             (isFloatCast && session == null); // Можна витягнути пустий
             releaseButton.interactable = canRelease && !IsProcessingAction();
+            
+            var buttonText = releaseButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                if (session == null && isFloatCast)
+                {
+                    buttonText.text = "Витягнути";
+                }
+                else
+                {
+                    buttonText.text = "Відпустити";
+                }
+            }
         }
     }
     
     private string GetHookPullButtonText(FishingState? state)
     {
+        if (!isFloatCast) return "Підсікти";
+        
         return state switch
         {
             FishingState.Biting => "Підсікти!",
+            FishingState.Hooked => "Почати бій",
             FishingState.Fighting => "Тягнути",
-            _ => "Підсікти"
+            _ => "Витягнути"
         };
     }
     
@@ -741,6 +845,7 @@ public class FishingController : MonoBehaviour
     {
         UpdatePlayerStats();
         UpdateInstructions();
+        UpdateStatusDisplay();
     }
     
     private void UpdatePlayerStats()
@@ -764,160 +869,48 @@ public class FishingController : MonoBehaviour
         instructionText.text = instruction;
     }
     
+    private void UpdateStatusDisplay()
+    {
+        var session = fishingService?.GetCurrentSession();
+        
+        // Оновлюємо статус якщо потрібно
+        if (session != null)
+        {
+            string currentStatus = GetCurrentStatusKey(session.State);
+            if (statusText != null && !statusText.text.Contains(statusMessages[currentStatus]))
+            {
+                UpdateStatusText(currentStatus);
+            }
+        }
+        
+        // Оновлюємо інформацію про поточну рибу якщо є
+        if (session?.CurrentFish != null && isReeling)
+        {
+            string detailedStatus = $"Тягнемо {session.CurrentFish.FishType}! " +
+                                   $"Відстань: {currentFishDistance:F1}м " +
+                                   $"(Натяг: {tensionLevel:P0})";
+            if (statusText != null)
+            {
+                statusText.text = detailedStatus;
+            }
+        }
+    }
+    
+    private string GetCurrentStatusKey(FishingState state)
+    {
+        return state switch
+        {
+            FishingState.Waiting => "waiting",
+            FishingState.Biting => "biting",
+            FishingState.Hooked => "hooked",
+            FishingState.Fighting => "fighting",
+            FishingState.Caught => "caught",
+            FishingState.Escaped => "escaped",
+            _ => "ready"
+        };
+    }
+    
     private string GetInstructionText(FishingState? state)
     {
         if (!isFloatCast)
             return "Натисніть 'Закинути' щоб почати риболовлю";
-            
-        return state switch
-        {
-            FishingState.Waiting => "Чекайте поклювки...",
-            FishingState.Biting => "КЛЮЄ! Швидко натисніть 'Підсікти'!",
-            FishingState.Fighting => "Тягніть рибу натискаючи 'Тягнути'",
-            _ => "Очікування..."
-        };
-    }
-    
-    #endregion
-    
-    #region Helper Methods
-    
-    private void HandlePlayerAction(FishingAction action)
-    {
-        fishingService?.HandlePlayerAction(action);
-    }
-    
-    private void CompleteCatch()
-    {
-        var session = fishingService.GetCurrentSession();
-        if (session?.CurrentFish != null)
-        {
-            UpdateStatusText("caught");
-            PlaySound(catchSound);
-        }
-        
-        StopFightSequence();
-        ResetFishing();
-    }
-    
-    private void HandleLineBroken()
-    {
-        UpdateStatusText("Леска порвалась!");
-        PlaySound(escapeSound);
-        StopFightSequence();
-        ResetFishing();
-    }
-    
-    private void HandleFishEscape(string reason)
-    {
-        UpdateStatusText($"Риба втекла! {reason}");
-        PlaySound(escapeSound);
-        StopFightSequence();
-        ResetFishing();
-    }
-    
-    private void StopFightSequence()
-    {
-        if (fightCoroutine != null)
-        {
-            StopCoroutine(fightCoroutine);
-            fightCoroutine = null;
-        }
-        
-        isReeling = false;
-        tensionLevel = 0f;
-        
-        if (progressBar != null)
-        {
-            progressBar.gameObject.SetActive(false);
-        }
-    }
-    
-    private void ResetFishing()
-    {
-        isFloatCast = false;
-        isFishBiting = false;
-        
-        StopFightSequence();
-        
-        if (floatObject != null)
-        {
-            floatObject.SetActive(false);
-            floatObject.transform.position = floatStartPosition;
-        }
-        
-        if (fishingLine != null)
-        {
-            fishingLine.enabled = false;
-            fishingLine.material.color = normalLineColor;
-        }
-        
-        if (timerText != null)
-        {
-            timerText.text = "";
-        }
-        
-        UpdateButtonStates();
-        StartCoroutine(PrepareForNextCast());
-    }
-    
-    private IEnumerator ResetAfterCompletion()
-    {
-        yield return mediumDelay;
-        ResetFishing();
-    }
-    
-    private IEnumerator PrepareForNextCast()
-    {
-        yield return mediumDelay;
-        UpdateStatusText("ready");
-        UpdateButtonStates();
-    }
-    
-    private IEnumerator ShowTemporaryMessage(string message, float duration)
-    {
-        string originalMessage = statusText?.text;
-        UpdateStatusText(message);
-        
-        yield return new WaitForSeconds(duration);
-        
-        if (!string.IsNullOrEmpty(originalMessage))
-        {
-            UpdateStatusText(originalMessage);
-        }
-    }
-    
-    private void UpdateStatusText(string messageKey)
-    {
-        if (statusText == null) return;
-        
-        string message = statusMessages.ContainsKey(messageKey) ? 
-                        statusMessages[messageKey] : messageKey;
-        
-        statusText.text = message;
-        Debug.Log(message);
-    }
-    
-    private void PlaySound(AudioClip clip)
-    {
-        if (audioSource != null && clip != null)
-        {
-            audioSource.PlayOneShot(clip);
-        }
-    }
-    
-    private void PlayEffect(ParticleSystem effect)
-    {
-        if (effect != null)
-        {
-            effect.Play();
-        }
-    }
-    
-    private bool IsProcessingAction()
-    {
-        return fightCoroutine != null;
-    }
-    
-    #endregion
-}
