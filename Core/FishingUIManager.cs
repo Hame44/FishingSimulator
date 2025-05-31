@@ -1,10 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 public class FishingUIManager
 {
     private FishingController controller;
+    private bool isPulling = false;
+    private Coroutine pullingCoroutine;
     
     private readonly Dictionary<string, string> statusMessages = new Dictionary<string, string>
     {
@@ -27,10 +30,41 @@ public class FishingUIManager
     {
         controller.castButton?.onClick.AddListener(controller.CastLine);
         controller.hookPullButton?.onClick.AddListener(HandleHookPullClick);
-        controller.releaseButton?.onClick.AddListener(StartContinuousPulling);
+        
+        // Налаштовуємо кнопку для безперервного тягнення
+        SetupReleaseButton();
         
         UpdateButtonStates();
         SetupProgressBar();
+    }
+    
+    private void SetupReleaseButton()
+    {
+        if (controller.releaseButton != null)
+        {
+            // Додаємо EventTrigger для обробки натискання та відпускання
+            EventTrigger trigger = controller.releaseButton.GetComponent<EventTrigger>();
+            if (trigger == null)
+                trigger = controller.releaseButton.gameObject.AddComponent<EventTrigger>();
+            
+            // Коли натискаємо кнопку
+            EventTrigger.Entry pointerDown = new EventTrigger.Entry();
+            pointerDown.eventID = EventTriggerType.PointerDown;
+            pointerDown.callback.AddListener((data) => StartContinuousPulling());
+            trigger.triggers.Add(pointerDown);
+            
+            // Коли відпускаємо кнопку
+            EventTrigger.Entry pointerUp = new EventTrigger.Entry();
+            pointerUp.eventID = EventTriggerType.PointerUp;
+            pointerUp.callback.AddListener((data) => StopContinuousPulling());
+            trigger.triggers.Add(pointerUp);
+            
+            // Коли курсор виходить за межі кнопки
+            EventTrigger.Entry pointerExit = new EventTrigger.Entry();
+            pointerExit.eventID = EventTriggerType.PointerExit;
+            pointerExit.callback.AddListener((data) => StopContinuousPulling());
+            trigger.triggers.Add(pointerExit);
+        }
     }
     
     private void HandleHookPullClick()
@@ -39,8 +73,8 @@ public class FishingUIManager
         
         if (session?.State == FishingState.Fighting)
         {
-            // В стані боротьби - тягнемо рибу
-            controller.StartCoroutine(PullFishCoroutine());
+            // В стані боротьби - один раз тягнемо рибу
+            controller.gameLogic.PullFish();
         }
         else
         {
@@ -51,28 +85,68 @@ public class FishingUIManager
 
     private void StartContinuousPulling()
     {
-        // if (controller.gameObject.activeInHierarchy)
-        // {
-            Debug.Log("Continuous pulling started");
-            while (Input.GetMouseButton(0)) 
+        var session = controller.FishingService?.GetCurrentSession();
+        
+        // Перевіряємо чи можемо тягнути рибу
+        if (session?.State != FishingState.Fighting || isPulling)
+            return;
+            
+        Debug.Log("Continuous pulling started");
+        isPulling = true;
+        
+        if (pullingCoroutine != null)
+        {
+            controller.StopCoroutine(pullingCoroutine);
+        }
+        
+        pullingCoroutine = controller.StartCoroutine(ContinuousPullCoroutine());
+    }
+    
+    private void StopContinuousPulling()
+    {
+        if (!isPulling) return;
+        
+        Debug.Log("Continuous pulling stopped");
+        isPulling = false;
+        
+        if (pullingCoroutine != null)
+        {
+            controller.StopCoroutine(pullingCoroutine);
+            pullingCoroutine = null;
+        }
+    }
+    
+    private System.Collections.IEnumerator ContinuousPullCoroutine()
+    {
+        while (isPulling)
+        {
+            var session = controller.FishingService?.GetCurrentSession();
+            
+            // Перевіряємо чи досі можемо тягнути
+            if (session?.State != FishingState.Fighting)
             {
-            controller.StartCoroutine(PullFishCoroutine());
+                break;
             }
-
-        // }
+            
+            Debug.Log("Pulling fish...");
+            
+            // Тягнемо рибу з більшою силою (можна викликати кілька разів за ітерацію)
+            controller.gameLogic.PullFish();
+            controller.gameLogic.PullFish(); // Додатковий виклик для швидшого тягнення
+            
+            // Зменшена затримка для швидшого тягнення
+            yield return new WaitForSeconds(0.05f);
+        }
+        
+        isPulling = false;
+        pullingCoroutine = null;
     }
     
     public System.Collections.IEnumerator PullFishCoroutine()
     {
-        // Тягнемо рибу поки натиснута кнопка
-        // while (Input.GetMouseButton(0) && controller.IsReeling)
-        Debug.Log("PullFishCoroutine started");
-        // while (Input.GetMouseButton(0))
-        // {
-            Debug.Log("Pulling fish...");
-            controller.gameLogic.PullFish();
-            yield return null;
-        // }
+        Debug.Log("Single pull fish action");
+        controller.gameLogic.PullFish();
+        yield return null;
     }
     
     private void SetupProgressBar()
@@ -120,8 +194,14 @@ public class FishingUIManager
     {
         if (controller.releaseButton != null)
         {
-            bool canRelease = controller.IsFloatCast;
+            bool canRelease = state == FishingState.Fighting;
             controller.releaseButton.interactable = canRelease;
+            
+            var buttonText = controller.releaseButton.GetComponentInChildren<Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = canRelease ? "Утримувати для тягнення" : "Відпустити";
+            }
         }
     }
     
@@ -131,7 +211,7 @@ public class FishingUIManager
         {
             FishingState.Biting => "Підсікти!",
             FishingState.Hooked => "Тягнути",
-            FishingState.Fighting => "Тягнути",
+            FishingState.Fighting => "Тягнути (один раз)",
             _ => "Підсікти"
         };
     }
@@ -176,7 +256,7 @@ public class FishingUIManager
             FishingState.Waiting => "Чекайте поклювки...",
             FishingState.Biting => "КЛЮЄ! Швидко натисніть 'Підсікти'!",
             FishingState.Hooked => "Натисніть 'Тягнути' щоб почати боротьбу",
-            FishingState.Fighting => "Утримуйте 'Тягнути' щоб підтягнути рибу",
+            FishingState.Fighting => "Утримуйте кнопку 'Утримувати' щоб підтягнути рибу",
             _ => "Очікування..."
         };
     }
@@ -185,7 +265,8 @@ public class FishingUIManager
     {
         if (controller.timerText != null && controller.IsReeling)
         {
-            controller.timerText.text = $"Час боротьби: {controller.FightTimer:F1}с / {controller.maxFightTime:F0}с";
+            string pullingStatus = isPulling ? " (Тягну!)" : "";
+            controller.timerText.text = $"Час боротьби: {controller.FightTimer:F1}с / {controller.maxFightTime:F0}с{pullingStatus}";
         }
         else if (controller.timerText != null)
         {
@@ -237,5 +318,11 @@ public class FishingUIManager
     private bool IsProcessingAction()
     {
         return controller.FightCoroutine != null;
+    }
+    
+    public void OnDestroy()
+    {
+        // Зупиняємо тягнення при знищенні об'єкта
+        StopContinuousPulling();
     }
 }

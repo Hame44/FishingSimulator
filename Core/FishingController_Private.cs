@@ -30,7 +30,7 @@ public partial class FishingController
         { 
             Id = 1, 
             Name = "Рибалка",
-            Strength = 100f,
+            Strength = 1f,
             Experience = 0,
             Equipment = new Equipment
             {
