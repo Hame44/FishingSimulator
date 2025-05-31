@@ -1,0 +1,46 @@
+using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+// TODO: натяг волосіні ( зверху slide bar)
+public class FishingController : MonoBehaviour
+{
+    
+    void Awake()
+    {
+        InitializeCachedDelays();
+        InitializeComponents();
+    }
+    
+    void Start()
+    {
+        InitializeServices();
+        CreatePlayer();
+        SetupInitialState();
+        StartCoroutine(floatAnimation.BaseBobbing());
+    }
+    
+    void Update()
+    {
+        fishingLogic.UpdateGameLogic();
+        visualEffects.UpdateVisualEffects();
+        uiManager.UpdateUI();
+    }
+    
+    void OnDestroy()
+    {
+        CleanupSubscriptions();
+    }
+    
+    
+    public void CastLine()
+    {
+        if (!IsFloatCast && !fishingLogic.IsProcessingAction())
+        {
+            StartCoroutine(fishingLogic.CastLineCoroutine());
+        }
+    }
+    
+    public void HookingFish() => fishingLogic.HookingFish();
+    public void PullingLine() => fishingLogic.PullingLine();
+    
+}

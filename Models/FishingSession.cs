@@ -8,9 +8,7 @@ public enum FishingState
     Hooked,
     Fighting,
     Caught,
-    Escaped,
-    Ready,
-    Completed
+    Escaped
 }
 
 public enum FishingResult
@@ -20,7 +18,6 @@ public enum FishingResult
     LineBroken,
     RodBroken,
     RodPulledAway,
-    MissedBite,
     EmptyReel
 }
 
