@@ -118,8 +118,8 @@ public class FishingAnimator
     private void AnimateNormalBobbing()
     {
         float time = Time.time * controller.floatBobSpeed;
-        // Поплавок йде вниз (у воду) і повертається назад
-        float bobOffset = -Mathf.Abs(Mathf.Sin(time)) * controller.floatBobIntensity;
+        // Поплавок тільки йде вниз (у воду) - зменшуємо силу коливань
+        float bobOffset = -Mathf.Abs(Mathf.Sin(time)) * controller.floatBobIntensity * 0.3f;
         
         Vector3 newPos = floatBasePosition;
         newPos.y += bobOffset;
@@ -128,7 +128,7 @@ public class FishingAnimator
     
     private IEnumerator BiteAnimation()
     {
-        float biteTime = 0.3f;
+        float biteTime = 0.5f;
         float elapsed = 0f;
         
         while (elapsed < biteTime && controller.IsFishBiting && !controller.IsHooked)
@@ -136,9 +136,9 @@ public class FishingAnimator
             elapsed += Time.deltaTime;
             float progress = elapsed / biteTime;
             
-            // Драматичний рух під час клювання
-            float sideMovement = Mathf.Sin(progress * Mathf.PI * 8) * 0.15f;
-            float downMovement = -Mathf.Abs(Mathf.Sin(progress * Mathf.PI * 6)) * controller.biteBobIntensity;
+            // Активна анімація клювання - поплавок різко йде вниз
+            float sideMovement = Mathf.Sin(progress * Mathf.PI * 10) * 0.1f;
+            float downMovement = -Mathf.Abs(Mathf.Sin(progress * Mathf.PI * 8)) * controller.biteBobIntensity;
             
             Vector3 newPos = floatBasePosition;
             newPos.x += sideMovement;
@@ -160,17 +160,17 @@ public class FishingAnimator
     {
         if (controller.floatObject == null) return;
         
-        Vector3 targetPos = Vector3.Lerp(controller.shore.position, floatTargetPosition, distanceRatio);
+        Vector3 targetPos = Vector3.Lerp(floatTargetPosition, controller.shore.position, 1f - distanceRatio);
         
         // Додаємо тремтіння від боротьби
         Vector3 fightOffset = new Vector3(
-            UnityEngine.Random.Range(-0.1f, 0.1f),
             UnityEngine.Random.Range(-0.05f, 0.05f),
+            UnityEngine.Random.Range(-0.03f, 0.03f),
             0
         ) * tensionLevel;
         
         controller.floatObject.transform.position = targetPos + fightOffset;
-        floatBasePosition = targetPos; // Оновлюємо базову позицію
+        floatBasePosition = targetPos;
     }
     
     public void ResetFloat()

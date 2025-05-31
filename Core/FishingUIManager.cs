@@ -11,6 +11,7 @@ public class FishingUIManager
         ["cast"] = "Закидання вудки...",
         ["waiting"] = "Очікування риби...",
         ["biting"] = "КЛЮЄ! Натисніть 'Підсікти'!",
+        ["hooked"] = "Риба на гачку! Натисніть 'Тягнути'",
         ["fighting"] = "Тягніть рибу!",
         ["caught"] = "Риба піймана!",
         ["escaped"] = "Риба втекла...",
@@ -22,14 +23,40 @@ public class FishingUIManager
         this.controller = controller;
     }
     
-    public void SetupUI(FishingController fishingController)
+    public void SetupUI()
     {
         controller.castButton?.onClick.AddListener(controller.CastLine);
-        controller.hookPullButton?.onClick.AddListener(controller.HookOrPull);
-        controller.releaseButton?.onClick.AddListener(() => HandlePlayerAction(FishingAction.Release));
+        controller.hookPullButton?.onClick.AddListener(HandleHookPullClick);
+        controller.releaseButton?.onClick.AddListener(controller.ReleaseLine);
         
         UpdateButtonStates();
         SetupProgressBar();
+    }
+    
+    private void HandleHookPullClick()
+    {
+        var session = controller.FishingService?.GetCurrentSession();
+        
+        if (session?.State == FishingState.Fighting)
+        {
+            // В стані боротьби - тягнемо рибу
+            controller.StartCoroutine(PullFishCoroutine());
+        }
+        else
+        {
+            // В інших станах - підсікаємо
+            controller.HookOrPull();
+        }
+    }
+    
+    private System.Collections.IEnumerator PullFishCoroutine()
+    {
+        // Тягнемо рибу поки натиснута кнопка
+        while (Input.GetMouseButton(0) && controller.IsReeling)
+        {
+            controller.gameLogic.PullFish();
+            yield return null;
+        }
     }
     
     private void SetupProgressBar()
@@ -46,9 +73,21 @@ public class FishingUIManager
     {
         var session = controller.FishingService?.GetCurrentSession();
         
+        UpdateCastButton();
+        UpdateHookPullButton(session?.State);
+        UpdateReleaseButton(session?.State);
+    }
+    
+    private void UpdateCastButton()
+    {
         if (controller.castButton != null)
+        {
             controller.castButton.interactable = !controller.IsFloatCast && !IsProcessingAction();
-            
+        }
+    }
+    
+    private void UpdateHookPullButton(FishingState? state)
+    {
         if (controller.hookPullButton != null)
         {
             controller.hookPullButton.interactable = controller.IsFloatCast && !IsProcessingAction();
@@ -56,15 +95,17 @@ public class FishingUIManager
             var buttonText = controller.hookPullButton.GetComponentInChildren<Text>();
             if (buttonText != null)
             {
-                buttonText.text = GetHookPullButtonText(session?.State);
+                buttonText.text = GetHookPullButtonText(state);
             }
         }
-        
+    }
+    
+    private void UpdateReleaseButton(FishingState? state)
+    {
         if (controller.releaseButton != null)
         {
-            bool canRelease = session?.State == FishingState.Hooked || 
-                             session?.State == FishingState.Fighting;
-            controller.releaseButton.interactable = canRelease && !IsProcessingAction();
+            bool canRelease = controller.IsFloatCast;
+            controller.releaseButton.interactable = canRelease;
         }
     }
     
@@ -73,6 +114,7 @@ public class FishingUIManager
         return state switch
         {
             FishingState.Biting => "Підсікти!",
+            FishingState.Hooked => "Тягнути",
             FishingState.Fighting => "Тягнути",
             _ => "Підсікти"
         };
@@ -82,17 +124,19 @@ public class FishingUIManager
     {
         UpdatePlayerStats();
         UpdateInstructions();
+        UpdateTimer();
     }
     
     public void UpdatePlayerStats()
     {
         if (controller.CurrentPlayer != null && controller.playerStatsText != null)
         {
-            controller.playerStatsText.text = $"Гравець: {controller.CurrentPlayer.Name}\n" +
-                                 $"Сила: {controller.CurrentPlayer.Strength:F1}\n" +
-                                 $"Досвід: {controller.CurrentPlayer.Experience}\n" +
-                                 $"Вудка: {controller.CurrentPlayer.Equipment.RodDurability:F0}%\n" +
-                                 $"Леска: {controller.CurrentPlayer.Equipment.LineDurability:F0}%";
+            controller.playerStatsText.text = 
+                $"Гравець: {controller.CurrentPlayer.Name}\n" +
+                $"Сила: {controller.CurrentPlayer.Strength:F1}\n" +
+                $"Досвід: {controller.CurrentPlayer.Experience}\n" +
+                $"Вудка: {controller.CurrentPlayer.Equipment.RodDurability:F0}%\n" +
+                $"Леска: {controller.CurrentPlayer.Equipment.LineDurability:F0}%";
         }
     }
     
@@ -114,9 +158,22 @@ public class FishingUIManager
         {
             FishingState.Waiting => "Чекайте поклювки...",
             FishingState.Biting => "КЛЮЄ! Швидко натисніть 'Підсікти'!",
-            FishingState.Fighting => "Тягніть рибу натискаючи 'Тягнути'",
+            FishingState.Hooked => "Натисніть 'Тягнути' щоб почати боротьбу",
+            FishingState.Fighting => "Утримуйте 'Тягнути' щоб підтягнути рибу",
             _ => "Очікування..."
         };
+    }
+    
+    public void UpdateTimer()
+    {
+        if (controller.timerText != null && controller.IsReeling)
+        {
+            controller.timerText.text = $"Час боротьби: {controller.FightTimer:F1}с / {controller.maxFightTime:F0}с";
+        }
+        else if (controller.timerText != null)
+        {
+            controller.timerText.text = "";
+        }
     }
     
     public void UpdateProgressBar()
@@ -134,6 +191,22 @@ public class FishingUIManager
         }
     }
     
+    public void ShowProgressBar()
+    {
+        if (controller.progressBar != null)
+        {
+            controller.progressBar.gameObject.SetActive(true);
+        }
+    }
+    
+    public void HideProgressBar()
+    {
+        if (controller.progressBar != null)
+        {
+            controller.progressBar.gameObject.SetActive(false);
+        }
+    }
+    
     public void UpdateStatusText(string messageKey)
     {
         if (controller.statusText == null) return;
@@ -142,13 +215,7 @@ public class FishingUIManager
                         statusMessages[messageKey] : messageKey;
         
         controller.statusText.text = message;
-        Debug.Log(message);
-    }
-    
-    private void HandlePlayerAction(FishingAction action)
-    {
-        // Handle player actions here
-        Debug.Log($"Player action: {action}");
+        Debug.Log($"Status: {message}");
     }
     
     private bool IsProcessingAction()

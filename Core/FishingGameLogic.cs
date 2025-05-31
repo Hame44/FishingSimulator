@@ -26,22 +26,18 @@ public class FishingGameLogic
         {
             controller.SetCurrentState(session.State);
             controller.UIManager.UpdateButtonStates();
-        }
-    }
-    
-    private void HandleFighting(FishingSession session)
-    {
-        if (session.State == FishingState.Fighting && controller.IsReeling)
-        {
-            // Автоматичне тягнення не відбувається - тільки по кліку
-        }
-    }
-    
-    private void CheckForCompletion(FishingSession session)
-    {
-        if (session.State == FishingState.Caught || session.State == FishingState.Escaped)
-        {
-            controller.StartCoroutine(HandleCompletion(session.State));
+            
+            // Оновлюємо стан клювання
+            bool wasBiting = controller.IsFishBiting;
+            bool isBiting = session.State == FishingState.Biting;
+            controller.SetFishBiting(isBiting);
+            
+            // Якщо почалося клювання, оновлюємо UI
+            if (!wasBiting && isBiting)
+            {
+                controller.UIManager.UpdateStatusText("biting");
+                controller.VisualEffects.PlayBiteEffect();
+            }
         }
     }
     
@@ -105,14 +101,23 @@ public class FishingGameLogic
                 StartFighting(session);
                 break;
             case FishingState.Fighting:
-                PullFish(session);
+                // У стані Fighting не тягнемо автоматично
+                controller.UIManager.UpdateStatusText("fighting");
                 break;
         }
     }
     
-    private void HandlePrematureHook()
+    public void PullFish()
     {
-        controller.StartCoroutine(ShowTemporaryMessage("Передчасно! Чекайте поклювки...", 2f));
+        var session = controller.FishingService.GetCurrentSession();
+        if (session?.State != FishingState.Fighting || !controller.IsReeling) return;
+        
+        var fish = session.CurrentFish;
+        if (fish == null) return;
+        
+        CalculatePullProgress(fish);
+        UpdateFishPosition();
+        CheckCatchCompletion();
     }
     
     private void HandleHook(FishingSession session)
@@ -147,18 +152,6 @@ public class FishingGameLogic
         controller.SetFightCoroutine(fightCoroutine);
     }
     
-    private void PullFish(FishingSession session)
-    {
-        if (controller.CurrentFishDistance <= 0 || !controller.IsReeling) return;
-        
-        var fish = session.CurrentFish;
-        if (fish == null) return;
-        
-        CalculatePullProgress(fish);
-        UpdateFishPosition();
-        CheckCatchCompletion();
-    }
-    
     public void ReleaseLine()
     {
         var session = controller.FishingService?.GetCurrentSession();
@@ -176,5 +169,22 @@ public class FishingGameLogic
     public bool IsProcessingAction()
     {
         return controller.FightCoroutine != null;
+    }
+    
+    // Event handlers
+    public void OnFishingStateChanged(FishingState newState)
+    {
+        Debug.Log($"Стан риболовлі змінено на: {newState}");
+    }
+    
+    public void OnFishBite()
+    {
+        Debug.Log("Риба клює!");
+    }
+    
+    public void OnFishingComplete(FishingResult result, Fish fish)
+    {
+        Debug.Log($"Риболовля завершена: {result}");
+        controller.StartCoroutine(HandleCompletion(FishingState.Caught));
     }
 }

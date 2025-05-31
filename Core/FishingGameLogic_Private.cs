@@ -3,6 +3,27 @@ using System.Collections;
 
 public partial class FishingGameLogic
 {
+    private void HandlePrematureHook()
+    {
+        controller.StartCoroutine(ShowTemporaryMessage("Передчасно! Чекайте поклювки...", 2f));
+    }
+    
+    private void HandleFighting(FishingSession session)
+    {
+        if (session.State == FishingState.Fighting && controller.IsReeling)
+        {
+            // Логіка боротьби обробляється в PullFish()
+        }
+    }
+    
+    private void CheckForCompletion(FishingSession session)
+    {
+        if (session.State == FishingState.Caught || session.State == FishingState.Escaped)
+        {
+            controller.StartCoroutine(HandleCompletion(session.State));
+        }
+    }
+    
     private void CalculatePullProgress(Fish fish)
     {
         float fishResistance = fish.Strength / controller.CurrentPlayer.Strength;
@@ -37,6 +58,105 @@ public partial class FishingGameLogic
         }
     }
     
+    private void CompleteCatch()
+    {
+        var session = controller.FishingService.GetCurrentSession();
+        if (session != null)
+        {
+            session.CompleteFishing(FishingResult.Success);
+        }
+        
+        controller.SetReeling(false);
+        controller.UIManager.UpdateStatusText("caught");
+        StopFightSequence();
+        controller.StartCoroutine(ResetAfterCompletion());
+    }
+    
+    private void ReleaseFish()
+    {
+        var session = controller.FishingService.GetCurrentSession();
+        if (session != null)
+        {
+            session.CompleteFishing(FishingResult.FishEscaped);
+        }
+        
+        controller.UIManager.UpdateStatusText("escaped");
+        StopFightSequence();
+        controller.StartCoroutine(ResetAfterCompletion());
+    }
+    
+    private void StopFightSequence()
+    {
+        if (controller.FightCoroutine != null)
+        {
+            controller.StopCoroutine(controller.FightCoroutine);
+            controller.SetFightCoroutine(null);
+        }
+        
+        controller.SetReeling(false);
+        controller.UIManager.HideProgressBar();
+    }
+    
+    private IEnumerator ReelInEmptyLine()
+    {
+        controller.UIManager.UpdateStatusText("Витягуємо порожню вудку...");
+        controller.SetReeling(true);
+        
+        float reelTime = 2f;
+        float elapsed = 0f;
+        Vector3 startPos = controller.floatObject.transform.position;
+        
+        while (elapsed < reelTime)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / reelTime;
+            
+            Vector3 currentPos = Vector3.Lerp(startPos, controller.shore.position, progress);
+            controller.floatObject.transform.position = currentPos;
+            
+            yield return null;
+        }
+        
+        controller.Animator.ResetFloat();
+        controller.VisualEffects.HideFishingLine();
+        controller.SetReeling(false);
+        controller.UIManager.UpdateStatusText("ready");
+        controller.UIManager.UpdateButtonStates();
+    }
+    
+    private IEnumerator HandleCompletion(FishingState completionState)
+    {
+        StopFightSequence();
+        
+        string message = completionState == FishingState.Caught ? "caught" : "escaped";
+        controller.UIManager.UpdateStatusText(message);
+        
+        yield return controller.MediumDelay;
+        
+        yield return controller.StartCoroutine(ResetAfterCompletion());
+    }
+    
+    private IEnumerator ResetAfterCompletion()
+    {
+        controller.Animator.ResetFloat();
+        controller.VisualEffects.HideFishingLine();
+        controller.SetReeling(false);
+        controller.SetHooked(false);
+        controller.SetFishBiting(false);
+        
+        yield return new WaitForSeconds(1f);
+        
+        controller.UIManager.UpdateStatusText("ready");
+        controller.UIManager.UpdateButtonStates();
+    }
+    
+    private IEnumerator ShowTemporaryMessage(string message, float duration)
+    {
+        controller.UIManager.UpdateStatusText(message);
+        yield return new WaitForSeconds(duration);
+        controller.UIManager.UpdateStatusText("waiting");
+    }
+    
     private IEnumerator FightSequenceCoroutine()
     {
         while (ShouldContinueFight())
@@ -61,7 +181,7 @@ public partial class FishingGameLogic
     private bool ShouldContinueFight()
     {
         return controller.IsReeling && 
-               controller.CurrentFishDistance > 0.5f && 
+               controller.CurrentFishDistance > 0.1f && 
                controller.FightTimer < controller.maxFightTime;
     }
     
@@ -92,4 +212,8 @@ public partial class FishingGameLogic
     {
         if (controller.FightTimer >= controller.maxFightTime)
         {
-            controller.UIManager.UpdateStatusText("Час боротьби вийшов!
+            controller.UIManager.UpdateStatusText("Час боротьби вийшов! Риба втекла...");
+            ReleaseFish();
+        }
+    }
+}
