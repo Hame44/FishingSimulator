@@ -201,7 +201,21 @@ public class FishingController : MonoBehaviour
             fishingLine.enabled = false;
             fishingLine.startWidth = lineWidth;
             fishingLine.endWidth = lineWidth;
-            fishingLine.material.color = normalLineColor;
+            
+            if (fishingLine.material == null)
+            {
+                Material lineMaterial = new Material(Shader.Find("Sprites/Default"));
+                lineMaterial.color = normalLineColor;
+                fishingLine.material = lineMaterial;
+            }
+            else
+            {
+                fishingLine.material.color = normalLineColor;
+            }
+
+            fishingLine.sortingLayerName = "Default";
+            fishingLine.sortingOrder = 10;
+            fishingLine.useWorldSpace = true;
             
             if (lineColorGradient.colorKeys.Length == 0)
             {
@@ -296,12 +310,30 @@ public class FishingController : MonoBehaviour
     
     private void PerformHook()
     {
-        HandlePlayerAction(FishingAction.Hook);
-        PlaySound(catchSound);
-        PlayEffect(biteEffect);
+        var session = fishingService.GetCurrentSession();
+        if (session != null && session.TryHook())
+        {
+            PlaySound(catchSound);
+            PlayEffect(biteEffect);
         
-        UpdateStatusText("fighting");
-        StartFightSequence();
+            UpdateStatusText("fighting");
+        
+            // Не запускаємо бій одразу, даємо час на реакцію
+            StartCoroutine(DelayedFightStart());
+        }
+    }
+
+    private IEnumerator DelayedFightStart()
+    {
+    // Коротка затримка перед початком боротьби
+        yield return new WaitForSeconds(0.5f);
+    
+        var session = fishingService.GetCurrentSession();
+        if (session != null && session.State == FishingState.Hooked)
+        {
+            session.StartFight();
+            StartFightSequence();
+        }
     }
     
     private void PerformPull()
@@ -358,17 +390,51 @@ public class FishingController : MonoBehaviour
     private IEnumerator FloatBobbing()
     {
         Vector3 basePosition = floatObject.transform.position;
+        float originalY = basePosition.y;
         
         while (isFloatCast && floatObject != null)
         {
-            float bobIntensity = isFishBiting ? biteBobIntensity : floatBobIntensity;
-            float bobSpeed = isFishBiting ? biteBobSpeed : floatBobSpeed;
-            
-            float bobOffset = Mathf.Sin(Time.time * bobSpeed) * bobIntensity;
-            floatObject.transform.position = basePosition + Vector3.up * bobOffset;
+            if (isFishBiting)
+            {
+                // Під час клювання поплавок рухається більш драматично
+                yield return StartCoroutine(BiteAnimation(basePosition));
+            }
+            else
+            {
+                // Звичайне тихе покачування
+                float bobOffset = Mathf.Sin(Time.time * floatBobSpeed) * floatBobIntensity;
+                Vector3 newPos = basePosition;
+                newPos.y = originalY + bobOffset;
+                floatObject.transform.position = newPos;
+            }
             
             UpdateFishingLine();
             yield return shortDelay;
+        }
+    }
+
+    private IEnumerator BiteAnimation(Vector3 basePosition)
+    {
+        float biteTime = 0.5f; // Тривалість одного циклу клювання
+        float elapsed = 0f;
+    
+        while (elapsed < biteTime && isFishBiting)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / biteTime;
+        
+            // Рух поплавка: спочатку в сторону, потім вниз
+            float sideMovement = Mathf.Sin(progress * Mathf.PI * 4) * 0.3f; // Рух в сторону
+            float downMovement = -Mathf.Sin(progress * Mathf.PI * 2) * biteBobIntensity; // Рух вниз
+        
+            Vector3 newPos = basePosition;
+            newPos.x += sideMovement;
+            newPos.y += downMovement;
+        
+            floatObject.transform.position = newPos;
+            UpdateFishingLine();
+        
+            yield return null;
         }
     }
     
@@ -382,6 +448,7 @@ public class FishingController : MonoBehaviour
         if (progressBar != null)
         {
             progressBar.gameObject.SetActive(true);
+            progressBar.value = 0f;
         }
         
         if (fightCoroutine != null)
@@ -439,30 +506,50 @@ public class FishingController : MonoBehaviour
     
     private void PullFish()
     {
-        if (currentFishDistance > 0)
+        if (currentFishDistance > 0 && isReeling)
         {
-            float pullAmount = pullSpeed * Time.deltaTime;
-            
-            // Модифікація швидкості тягання залежно від натягу
-            pullAmount *= (1f - tensionLevel * 0.5f);
-            
-            currentFishDistance -= pullAmount;
-            
-            // Анімація наближення поплавка
-            Vector3 newPosition = Vector3.Lerp(
-                floatStartPosition, 
-                floatTargetPosition, 
-                currentFishDistance / castDistance
-            );
-            
+            var session = fishingService.GetCurrentSession();
+            if (session?.CurrentFish == null) return;
+        
+            // Розраховуємо швидкість тягання залежно від сили риби та гравця
+            float fishResistance = session.CurrentFish.Strength / currentPlayer.Strength;
+            float basePullSpeed = pullSpeed * Time.deltaTime;
+            float adjustedPullSpeed = basePullSpeed / (1f + fishResistance * 0.5f);
+        
+            // Додаємо випадковість - риба може опиратися
+            if (UnityEngine.Random.value < fishResistance * 0.3f)
+            {
+                // Риба опирається - тягнемо повільніше або навіть назад
+                adjustedPullSpeed *= 0.2f;
+                if (UnityEngine.Random.value < 0.1f)
+                {
+                    adjustedPullSpeed = -adjustedPullSpeed * 0.5f; // Риба тягне назад
+                }
+            }
+        
+            currentFishDistance -= adjustedPullSpeed;
+            currentFishDistance = Mathf.Max(0, currentFishDistance); // Не менше 0
+        
+            // Плавна анімація наближення поплавка
+            float distanceRatio = currentFishDistance / castDistance;
+            Vector3 targetPos = Vector3.Lerp(shore.position, floatTargetPosition, distanceRatio);
+        
+            // Додаємо ефект боротьби - поплавок трясеться
+            Vector3 fightOffset = new Vector3(
+                UnityEngine.Random.Range(-0.1f, 0.1f),
+                UnityEngine.Random.Range(-0.1f, 0.1f),
+                0
+            ) * tensionLevel;
+        
             if (floatObject != null)
             {
-                floatObject.transform.position = newPosition;
+                floatObject.transform.position = targetPos + fightOffset;
             }
-            
-            UpdateStatusText($"Тягнемо рибу! Відстань: {currentFishDistance:F1}м");
-            
-            if (currentFishDistance <= 0.5f)
+        
+            UpdateStatusText($"Тягнемо рибу! Відстань: {currentFishDistance:F1}м (Опір: {fishResistance:F1})");
+        
+            // Перевірка завершення
+            if (currentFishDistance <= 0.1f)
             {
                 CompleteCatch();
             }
