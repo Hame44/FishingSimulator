@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class FishingGameLogic
+public partial class FishingGameLogic
 {
     private FishingController controller;
     
@@ -118,6 +118,12 @@ public class FishingGameLogic
         CalculatePullProgress(fish);
         UpdateFishPosition();
         CheckCatchCompletion();
+
+        if (Time.time % 1f < 0.1f) // Кожну секунду
+        {
+            float progress = (1f - controller.CurrentFishDistance / controller.castDistance) * 100f;
+            Debug.Log($"🎣 Прогрес витягування: {progress:F0}% (дистанція: {controller.CurrentFishDistance:F1}м)");
+        }
     }
     
     private void HandleHook(FishingSession session)
@@ -177,9 +183,9 @@ public class FishingGameLogic
         Debug.Log($"Стан риболовлі змінено на: {newState}");
     }
     
-    public void OnFishBite()
+    public void OnFishBite(Fish fish)
     {
-        Debug.Log("Риба клює!");
+        Debug.Log($"Клює {fish?.FishType}!");
     }
     
     public void OnFishingComplete(FishingResult result, Fish fish)

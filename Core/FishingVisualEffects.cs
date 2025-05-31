@@ -59,11 +59,6 @@ public class FishingVisualEffects
         }
     }
     
-    private void HideLine()
-    {
-        controller.fishingLine.enabled = false;
-    }
-    
     public void UpdateVisualEffects()
     {
         UpdateFishingLine();
@@ -72,7 +67,11 @@ public class FishingVisualEffects
     
     public void UpdateFishingLine()
     {
-        if (!ShouldShowLine()) return;
+        if (!ShouldShowLine()) 
+        {
+            HideLine();
+            return;
+        }
         
         ShowLine();
         UpdateLinePositions();
@@ -88,11 +87,21 @@ public class FishingVisualEffects
     
     private void ShowLine()
     {
-        controller.fishingLine.enabled = true;
+        if (controller.fishingLine != null)
+            controller.fishingLine.enabled = true;
+    }
+    
+    private void HideLine()
+    {
+        if (controller.fishingLine != null)
+            controller.fishingLine.enabled = false;
     }
     
     private void UpdateLinePositions()
     {
+        if (controller.fishingLine == null || controller.rodTip == null || controller.floatObject == null)
+            return;
+            
         controller.fishingLine.SetPosition(0, controller.rodTip.position);
         controller.fishingLine.SetPosition(1, controller.floatObject.transform.position);
     }
@@ -101,7 +110,7 @@ public class FishingVisualEffects
     {
         if (controller.fishingLine?.material == null) return;
         
-        if (controller.IsReeling && controller.TensionLevel > 0)
+        if (controller.IsFighting && controller.TensionLevel > 0)
         {
             Color lineColor = controller.lineColorGradient.Evaluate(controller.TensionLevel);
             controller.fishingLine.material.color = lineColor;

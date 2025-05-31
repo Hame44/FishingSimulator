@@ -8,7 +8,9 @@ public enum FishingState
     Hooked,
     Fighting,
     Caught,
-    Escaped
+    Escaped,
+    Ready,
+    Completed
 }
 
 public enum FishingResult
@@ -18,7 +20,8 @@ public enum FishingResult
     LineBroken,
     RodBroken,
     RodPulledAway,
-    MissedBite
+    MissedBite,
+    EmptyReel
 }
 
 public class FishingSession
@@ -27,6 +30,7 @@ public class FishingSession
     public FishingState State { get; private set; }
     public float SessionTime { get; private set; }
     public bool IsActive { get; private set; }
+    public FishingResult? LastResult { get; private set; } // Додано
     
     public event Action<Fish> OnFishBite;
     public event Action<FishingResult, Fish> OnFishingComplete;
@@ -101,6 +105,7 @@ public class FishingSession
     
     public void CompleteFishing(FishingResult result)
     {
+        LastResult = result;
         FishingState newState = result == FishingResult.Success ? FishingState.Caught : FishingState.Escaped;
         State = newState;
         OnStateChanged?.Invoke(State);
@@ -115,6 +120,12 @@ public class FishingSession
         State = FishingState.Waiting;
         OnStateChanged?.Invoke(State);
         Debug.Log("Session reset to waiting");
+    }
+
+     public void setState(FishingState newState)
+    {
+        State = newState;
+        OnStateChanged?.Invoke(State);
     }
     
     public void Update(float deltaTime)

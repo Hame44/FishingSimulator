@@ -27,7 +27,7 @@ public class FishingUIManager
     {
         controller.castButton?.onClick.AddListener(controller.CastLine);
         controller.hookPullButton?.onClick.AddListener(HandleHookPullClick);
-        controller.releaseButton?.onClick.AddListener(controller.ReleaseLine);
+        controller.releaseButton?.onClick.AddListener(StartContinuousPulling);
         
         UpdateButtonStates();
         SetupProgressBar();
@@ -48,15 +48,31 @@ public class FishingUIManager
             controller.HookOrPull();
         }
     }
+
+    private void StartContinuousPulling()
+    {
+        // if (controller.gameObject.activeInHierarchy)
+        // {
+            Debug.Log("Continuous pulling started");
+            while (Input.GetMouseButton(0)) 
+            {
+            controller.StartCoroutine(PullFishCoroutine());
+            }
+
+        // }
+    }
     
-    private System.Collections.IEnumerator PullFishCoroutine()
+    public System.Collections.IEnumerator PullFishCoroutine()
     {
         // Тягнемо рибу поки натиснута кнопка
-        while (Input.GetMouseButton(0) && controller.IsReeling)
-        {
+        // while (Input.GetMouseButton(0) && controller.IsReeling)
+        Debug.Log("PullFishCoroutine started");
+        // while (Input.GetMouseButton(0))
+        // {
+            Debug.Log("Pulling fish...");
             controller.gameLogic.PullFish();
             yield return null;
-        }
+        // }
     }
     
     private void SetupProgressBar()
@@ -125,6 +141,7 @@ public class FishingUIManager
         UpdatePlayerStats();
         UpdateInstructions();
         UpdateTimer();
+        UpdateProgressBar();
     }
     
     public void UpdatePlayerStats()
@@ -215,7 +232,6 @@ public class FishingUIManager
                         statusMessages[messageKey] : messageKey;
         
         controller.statusText.text = message;
-        Debug.Log($"Status: {message}");
     }
     
     private bool IsProcessingAction()

@@ -14,6 +14,9 @@ public class FishingService : MonoBehaviour, IFishingService
     // Поточна корутіна для управління спавном риби
     private Coroutine fishSpawnCoroutine;
     private Coroutine biteCoroutine;
+
+    private bool hasLoggedFightResult = false;
+    private float lastFightLogTime = 0f;
     
     void Awake()
     {
@@ -99,7 +102,7 @@ public class FishingService : MonoBehaviour, IFishingService
     {
         if (currentSession.State == FishingState.Biting)
         {
-            Debug.Log("Успішне підсікання!");
+            Debug.Log("🎯 Успішне підсікання!");
             bool hooked = currentSession.TryHook();
             if (hooked)
             {
@@ -109,12 +112,13 @@ public class FishingService : MonoBehaviour, IFishingService
                     StopCoroutine(biteCoroutine);
                     biteCoroutine = null;
                 }
-                currentSession.StartFight();
+                currentSession.setState(FishingState.Hooked);
+                Debug.Log($"🪝 {currentSession.CurrentFish.FishType} на гачку!");
             }
         }
         else if (currentSession.State == FishingState.Waiting)
         {
-            Debug.Log("Передчасне підсікання - штраф часу");
+            Debug.Log("⚠️ Передчасне підсікання - штраф часу (10-20сек)");
             // Затримка до наступної поклювки
             if (fishSpawnCoroutine != null)
             {
@@ -128,16 +132,24 @@ public class FishingService : MonoBehaviour, IFishingService
         }
     }
     
-    private void HandlePullAction()
+
+        private void HandlePullAction()
     {
-        if (currentSession.State == FishingState.Fighting)
+        if (currentSession.State == FishingState.Hooked)
         {
-            Debug.Log("Процес боротьби з рибою...");
+            Debug.Log("⚔️ Починаємо боротьбу з рибою...");
+            currentSession.StartFight();
+            hasLoggedFightResult = false; // Скидаємо флаг для нового бою
+        }
+        else if (currentSession.State == FishingState.Fighting)
+        {
+            // Не логуємо кожен кадр - тільки результат
             ProcessFight();
         }
-        else
+        else if (currentSession.State == FishingState.Waiting)
         {
-            Debug.Log($"Тягання неможливе в стані: {currentSession.State}");
+            Debug.Log("🎣 Витягуємо порожню лінію...");
+            currentSession.CompleteFishing(FishingResult.EmptyReel);
         }
     }
     
@@ -145,10 +157,11 @@ public class FishingService : MonoBehaviour, IFishingService
     {
         if (currentSession.State == FishingState.Hooked || currentSession.State == FishingState.Fighting)
         {
-            Debug.Log("Відпускаємо рибу");
+            Debug.Log("🔄 Відпускаємо рибу добровільно");
             currentSession.CompleteFishing(FishingResult.FishEscaped);
         }
     }
+    
     
     private void ProcessFight()
     {
@@ -161,15 +174,22 @@ public class FishingService : MonoBehaviour, IFishingService
             currentPlayer.Equipment.LineDurability
         );
         
-        if (fishEscaped)
+        if (!hasLoggedFightResult || Time.time - lastFightLogTime > 2f)
         {
-            Debug.Log("Риба намагається втекти!");
-            DetermineEscapeReason();
-        }
-        else
-        {
-            Debug.Log("Риба піймана!");
-            currentSession.CompleteFishing(FishingResult.Success);
+            if (fishEscaped)
+            {
+                Debug.Log("🐟 Риба намагається втекти!");
+                DetermineEscapeReason();
+                hasLoggedFightResult = true;
+                lastFightLogTime = Time.time;
+            }
+            else
+            {
+                Debug.Log("🎣 Риба піймана!");
+                currentSession.CompleteFishing(FishingResult.Success);
+                hasLoggedFightResult = true;
+                lastFightLogTime = Time.time;
+            }
         }
     }
     
@@ -178,28 +198,36 @@ public class FishingService : MonoBehaviour, IFishingService
         var fish = currentSession.CurrentFish;
         var equipment = currentPlayer.Equipment;
         
+        string escapeReason = "";
+        FishingResult result = FishingResult.FishEscaped;
+        
         if (currentPlayer.Strength < fish.Strength * 0.5f)
         {
-            Debug.Log("Риба вирвала вудку з рук!");
-            currentSession.CompleteFishing(FishingResult.RodPulledAway);
+            escapeReason = "💪 Риба вирвала вудку з рук! (Недостатньо сили)";
+            result = FishingResult.RodPulledAway;
         }
         else if (equipment.LineDurability < fish.Strength * 0.3f)
         {
-            Debug.Log("Порвалась леска!");
+            escapeReason = "💔 Порвалась леска! (Низька міцність лески)";
             equipment.DamageLine(equipment.LineDurability);
-            currentSession.CompleteFishing(FishingResult.LineBroken);
+            result = FishingResult.LineBroken;
         }
         else if (equipment.RodDurability < fish.Strength * 0.2f)
         {
-            Debug.Log("Зламалась вудка!");
+            escapeReason = "💥 Зламалась вудка! (Низька міцність вудки)";
             equipment.DamageRod(equipment.RodDurability);
-            currentSession.CompleteFishing(FishingResult.RodBroken);
+            result = FishingResult.RodBroken;
         }
         else
         {
-            Debug.Log("Риба втекла...");
-            currentSession.CompleteFishing(FishingResult.FishEscaped);
+            escapeReason = "🏃 Риба втекла через власну спритність...";
+            result = FishingResult.FishEscaped;
         }
+        
+        Debug.Log($"❌ {escapeReason}");
+        Debug.Log($"📊 Риба: {fish.FishType} ({fish.Weight:F1}кг, сила: {fish.Strength:F1}) vs Гравець (сила: {currentPlayer.Strength:F1})");
+        
+        currentSession.CompleteFishing(result);
     }
     
     private void StartFishSpawnLogic()
@@ -251,7 +279,7 @@ public class FishingService : MonoBehaviour, IFishingService
             Fish newFish = factory.CreateFish();
             currentSession.SetFish(newFish);
             
-            Debug.Log($"З'явилась риба: {newFish.FishType} ({newFish.Weight:F2}кг, сила: {newFish.Strength:F1})");
+            Debug.Log($"🐟 Клює {newFish.FishType}! Вага: {newFish.Weight:F2}кг, Сила: {newFish.Strength:F1}");
             
             // Запускаємо поведінку клювання
             var biteBehavior = newFish.GetBiteBehavior();
@@ -261,22 +289,18 @@ public class FishingService : MonoBehaviour, IFishingService
     
     private IEnumerator ExecuteBiteCoroutine(IBiteBehavior biteBehavior)
     {
-        Debug.Log($"{currentSession.CurrentFish.FishType} клює! Тривалість: {biteBehavior.BiteDuration:F1}с");
+        Debug.Log($"⏱️ {currentSession.CurrentFish.FishType} клює {biteBehavior.BiteDuration:F1} секунд!");
         
-        // Виконуємо логіку початку клювання
         biteBehavior.ExecuteBite(
-            () => Debug.Log("Клювання почалося!"),
-            () => Debug.Log("Клювання закінчилося!")
+            () => { /* Початок клювання */ },
+            () => { /* Кінець клювання */ }
         );
         
-        // Чекаємо час клювання
         yield return new WaitForSeconds(biteBehavior.BiteDuration);
         
-        // Перевіряємо чи гравець встиг засікти
         if (currentSession.State == FishingState.Biting)
         {
-            Debug.Log("Гравець не встиг підсікти!");
-            // Гравець не встиг засікти - перевіряємо повторне клювання
+            Debug.Log("⏰ Час клювання вийшов - гравець не встиг підсікти!");
             CheckForRebite(biteBehavior);
         }
         
@@ -302,6 +326,7 @@ public class FishingService : MonoBehaviour, IFishingService
         {
             Debug.Log("Риба втекла. Чекаємо наступну...");
             // Риба втекла, чекаємо наступну
+            currentSession.CompleteFishing(FishingResult.MissedBite);
             currentSession.ResetToWaiting();
             fishSpawnCoroutine = StartCoroutine(DelayNextFish(UnityEngine.Random.Range(15f, 45f)));
         }
@@ -371,7 +396,7 @@ public class FishingService : MonoBehaviour, IFishingService
             currentSession.ResetToWaiting();
         }
         
-        Debug.Log("Готовий до нового закидання!");
+        // Debug.Log("Готовий до нового закидання!");
     }
     
     private void HandleSuccessfulCatch(Fish fish)
@@ -395,23 +420,37 @@ public class FishingService : MonoBehaviour, IFishingService
         
         playerRepository.UpdatePlayerStats(currentPlayer.Id, strengthGain, expGain);
         
-        Debug.Log($"Піймано {fish.FishType} вагою {fish.Weight:F2}кг! +" +
-                 $"{strengthGain:F1} сили, +{expGain} досвіду");
+        Debug.Log($"🏆 УСПІХ! Піймано {fish.FishType} вагою {fish.Weight:F2}кг!");
+        Debug.Log($"📈 Нагороди: +{strengthGain:F1} сили, +{expGain} досвіду");
+        
+        // Скидаємо флаг для наступного бою
+        hasLoggedFightResult = false;
     }
     
     private void HandleFailedCatch(FishingResult result, Fish fish)
     {
         string message = result switch
         {
-            FishingResult.FishEscaped => "Риба втекла",
-            FishingResult.LineBroken => "Порвалась леска",
-            FishingResult.RodBroken => "Зламалась вудка",
-            FishingResult.RodPulledAway => "Риба вирвала вудку",
-            _ => "Невдача"
+                        FishingResult.FishEscaped => "🏃 Риба втекла",
+            FishingResult.LineBroken => "💔 Порвалась леска",
+            FishingResult.RodBroken => "💥 Зламалась вудка", 
+            FishingResult.RodPulledAway => "💪 Риба вирвала вудку",
+            FishingResult.MissedBite => "⏰ Пропущена поклювка",
+            FishingResult.EmptyReel => "🎣 Витягнули порожню лінію",
+            _ => "❌ Невдача"
         };
         
-        Debug.Log($"{message}. Риба: {fish?.FishType ?? "Невідома"} " +
-                 $"({fish?.Weight:F2 ?? 0}кг)");
+        if (fish != null)
+        {
+            Debug.Log($"{message} - {fish.FishType} ({fish.Weight:F2}кг, сила: {fish.Strength:F1})");
+        }
+        else
+        {
+            Debug.Log(message);
+        }
+        
+        // Скидаємо флаг для наступного бою
+        hasLoggedFightResult = false;
     }
     
     public FishingSession GetCurrentSession()

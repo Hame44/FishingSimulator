@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public partial class FishingController : MonoBehaviour
+public partial class FishingController
 {
     private void SubscribeToServiceEvents()
     {
@@ -30,7 +30,7 @@ public partial class FishingController : MonoBehaviour
         { 
             Id = 1, 
             Name = "Рибалка",
-            Strength = 10f,
+            Strength = 100f,
             Experience = 0,
             Equipment = new Equipment
             {
@@ -44,6 +44,7 @@ public partial class FishingController : MonoBehaviour
     
     private void SetupInitialState()
     {
+        originalFloatPosition = floatObject.transform.position;
         uiManager.SetupUI();
         fishingAnimator.InitializeVisuals();
         visualEffects.InitializeLineRenderer();

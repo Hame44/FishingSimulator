@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-public class FishingController : MonoBehaviour
+public partial class FishingController : MonoBehaviour
 {
     [Header("UI References")]
     public Button castButton;
@@ -24,9 +24,10 @@ public class FishingController : MonoBehaviour
     public ParticleSystem biteEffect;
     
     [Header("Float Animation")]
-    public float floatBobSpeed = 1.5f;
-    public float floatBobIntensity = 0.03f;
-    public float biteBobIntensity = 0.2f;
+    public float floatBobSpeed = 2f;
+    public float floatBobIntensity = 0.02f;
+    public float biteBobIntensity = 0.15f;
+    public float floatSubmergeDepth = 0.1f;
     public AnimationCurve castCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
     
     [Header("Fishing Parameters")]
@@ -45,7 +46,7 @@ public class FishingController : MonoBehaviour
     private Player currentPlayer;
     private FishingAnimator fishingAnimator;
     private FishingUIManager uiManager;
-    private FishingGameLogic gameLogic;
+    public FishingGameLogic gameLogic;
     private FishingVisualEffects visualEffects;
     
     // State
@@ -54,10 +55,13 @@ public class FishingController : MonoBehaviour
     private bool isFishBiting = false;
     private bool isReeling = false;
     private bool isHooked = false;
+    private bool isFighting = false;
     
     private float currentFishDistance;
     private float fightTimer = 0f;
     private float tensionLevel = 0f;
+    private Vector3 originalFloatPosition;
+    private Vector3 floatCastPosition;
     
     // Coroutines
     private Coroutine fightCoroutine;
@@ -93,31 +97,6 @@ public class FishingController : MonoBehaviour
         CleanupSubscriptions();
     }
     
-    private void InitializeComponents()
-    {
-        fishingAnimator = new FishingAnimator(this);
-        uiManager = new FishingUIManager(this);
-        gameLogic = new FishingGameLogic(this);
-        visualEffects = new FishingVisualEffects(this);
-    }
-    
-    private void InitializeServices()
-    {
-        GameObject serviceObject = GameObject.Find("FishingService");
-        if (serviceObject == null)
-        {
-            serviceObject = new GameObject("FishingService");
-        }
-        
-        fishingService = serviceObject.GetComponent<FishingService>();
-        if (fishingService == null)
-        {
-            fishingService = serviceObject.AddComponent<FishingService>();
-        }
-        
-        SubscribeToServiceEvents();
-    }
-    
     // Public API methods
     public void CastLine()
     {
@@ -148,27 +127,15 @@ public class FishingController : MonoBehaviour
     public bool IsFishBiting => isFishBiting;
     public bool IsReeling => isReeling;
     public bool IsHooked => isHooked;
+    public bool IsFighting => isFighting;
     public FishingState CurrentState => currentState;
     
     public float CurrentFishDistance => currentFishDistance;
     public float FightTimer => fightTimer;
     public float TensionLevel => tensionLevel;
+    public Vector3 OriginalFloatPosition => originalFloatPosition;
+    public Vector3 FloatCastPosition => floatCastPosition;
     
     public WaitForSeconds ShortDelay => shortDelay;
     public WaitForSeconds MediumDelay => mediumDelay;
-    
-    // State setters (внутрішні методи)
-    internal void SetFloatCast(bool value) => isFloatCast = value;
-    internal void SetFishBiting(bool value) => isFishBiting = value;
-    internal void SetReeling(bool value) => isReeling = value;
-    internal void SetHooked(bool value) => isHooked = value;
-    internal void SetCurrentState(FishingState value) => currentState = value;
-    internal void SetCurrentFishDistance(float value) => currentFishDistance = value;
-    internal void SetFightTimer(float value) => fightTimer = value;
-    internal void SetTensionLevel(float value) => tensionLevel = value;
-    internal void SetFightCoroutine(Coroutine value) => fightCoroutine = value;
-    internal void SetFloatBobCoroutine(Coroutine value) => floatBobCoroutine = value;
-    
-    internal Coroutine FightCoroutine => fightCoroutine;
-    internal Coroutine FloatBobCoroutine => floatBobCoroutine;
 }

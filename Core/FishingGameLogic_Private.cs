@@ -13,6 +13,7 @@ public partial class FishingGameLogic
         if (session.State == FishingState.Fighting && controller.IsReeling)
         {
             // Логіка боротьби обробляється в PullFish()
+            // HandleHookPullClick();
         }
     }
     
@@ -42,11 +43,36 @@ public partial class FishingGameLogic
         
         float newDistance = controller.CurrentFishDistance - adjustedPullSpeed;
         controller.SetCurrentFishDistance(Mathf.Max(0, newDistance));
+
+        if (Time.time % 0.5f < 0.1f) // Кожні 0.5 секунд
+        {
+            Debug.Log($"🐟 Дистанція риби: {controller.CurrentFishDistance:F2}м (швидкість: {adjustedPullSpeed:F3}м/с)");
+        }
     }
     
     private void UpdateFishPosition()
     {
+                if (controller.floatObject == null || controller.shore == null) return;
+        
+        // Розраховуємо позицію поплавка на основі дистанції до риби
         float distanceRatio = controller.CurrentFishDistance / controller.castDistance;
+        
+        // Поплавок рухається від початкової позиції до берега
+        Vector3 startPos = controller.Animator.FloatTargetPosition; // Позиція закидання
+        Vector3 endPos = controller.shore.position; // Позиція берега
+        
+        Vector3 newFloatPosition = Vector3.Lerp(endPos, startPos, distanceRatio);
+        
+        // Додаємо ефект боротьби - поплавок трясеться
+        Vector3 fightOffset = new Vector3(
+            UnityEngine.Random.Range(-0.05f, 0.05f),
+            UnityEngine.Random.Range(-0.03f, 0.03f),
+            0
+        ) * controller.TensionLevel;
+        
+        controller.floatObject.transform.position = newFloatPosition + fightOffset;
+        
+        // Оновлюємо анімацію у FishingAnimator
         controller.Animator.AnimateFighting(distanceRatio, controller.TensionLevel);
     }
     

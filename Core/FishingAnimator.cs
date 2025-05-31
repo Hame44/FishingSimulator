@@ -44,7 +44,7 @@ public class FishingAnimator
         ShowFloat();
         CalculateCastTarget();
         
-        yield return StartCoroutine(AnimateCastArc());
+        yield return controller.StartCoroutine(AnimateCastArc());
         
         SetFloatAtTarget();
         PlaySplashEffect();
@@ -104,7 +104,7 @@ public class FishingAnimator
         {
             if (controller.IsFishBiting)
             {
-                yield return StartCoroutine(BiteAnimation());
+                yield return controller.StartCoroutine(BiteAnimation());
             }
             else
             {
@@ -118,7 +118,6 @@ public class FishingAnimator
     private void AnimateNormalBobbing()
     {
         float time = Time.time * controller.floatBobSpeed;
-        // Поплавок тільки йде вниз (у воду) - зменшуємо силу коливань
         float bobOffset = -Mathf.Abs(Mathf.Sin(time)) * controller.floatBobIntensity * 0.3f;
         
         Vector3 newPos = floatBasePosition;
@@ -136,7 +135,6 @@ public class FishingAnimator
             elapsed += Time.deltaTime;
             float progress = elapsed / biteTime;
             
-            // Активна анімація клювання - поплавок різко йде вниз
             float sideMovement = Mathf.Sin(progress * Mathf.PI * 10) * 0.1f;
             float downMovement = -Mathf.Abs(Mathf.Sin(progress * Mathf.PI * 8)) * controller.biteBobIntensity;
             
@@ -149,7 +147,6 @@ public class FishingAnimator
             yield return null;
         }
         
-        // Повертаємо до базової позиції
         if (!controller.IsHooked && controller.floatObject != null)
         {
             controller.floatObject.transform.position = floatBasePosition;
@@ -158,19 +155,31 @@ public class FishingAnimator
     
     public void AnimateFighting(float distanceRatio, float tensionLevel)
     {
-        if (controller.floatObject == null) return;
+                if (controller.floatObject == null || controller.shore == null) return;
         
-        Vector3 targetPos = Vector3.Lerp(floatTargetPosition, controller.shore.position, 1f - distanceRatio);
+        // Розраховуємо цільову позицію поплавка
+        Vector3 shorePos = controller.shore.position;
+        Vector3 targetPos = Vector3.Lerp(shorePos, floatTargetPosition, distanceRatio);
         
-        // Додаємо тремтіння від боротьби
+        // Додаємо ефект боротьби
         Vector3 fightOffset = new Vector3(
-            UnityEngine.Random.Range(-0.05f, 0.05f),
-            UnityEngine.Random.Range(-0.03f, 0.03f),
+            UnityEngine.Random.Range(-0.1f, 0.1f) * tensionLevel,
+            UnityEngine.Random.Range(-0.05f, 0.05f) * tensionLevel,
             0
-        ) * tensionLevel;
+        );
         
-        controller.floatObject.transform.position = targetPos + fightOffset;
+        // Плавно переміщуємо поплавок
+        Vector3 currentPos = controller.floatObject.transform.position;
+        Vector3 newPos = Vector3.Lerp(currentPos, targetPos + fightOffset, Time.deltaTime * 2f);
+        
+        controller.floatObject.transform.position = newPos;
         floatBasePosition = targetPos;
+        
+        // Логування для дебагу
+        if (Time.time % 1f < 0.1f)
+        {
+            Debug.Log($"🎯 Поплавок: позиція={newPos:F2}, дистанція={distanceRatio:F2}, напруга={tensionLevel:F2}");
+        }
     }
     
     public void ResetFloat()
@@ -184,7 +193,6 @@ public class FishingAnimator
         controller.SetFloatCast(false);
     }
     
-    // Геттери для позицій
     public Vector3 FloatStartPosition => floatStartPosition;
     public Vector3 FloatTargetPosition => floatTargetPosition;
     public Vector3 FloatBasePosition => floatBasePosition;
