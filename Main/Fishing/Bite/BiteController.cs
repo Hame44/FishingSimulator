@@ -29,7 +29,7 @@ public class BiteController : MonoBehaviour
     
     private void SubscribeToFishingEvents()
     {
-        var session = fishingController?.FishingService?.GetCurrentSession();
+        var session = fishingController.sessionManager.CurrentSession;
         if (session != null)
         {
             session.OnFishBite += StartBite; // Підписуємося на появу риби
@@ -38,7 +38,7 @@ public class BiteController : MonoBehaviour
     
     private void UnsubscribeFromFishingEvents()
     {
-        var session = fishingController?.FishingService?.GetCurrentSession();
+        var session = fishingController.sessionManager.CurrentSession;
         if (session != null)
         {
             session.OnFishBite -= StartBite;
@@ -72,8 +72,8 @@ public class BiteController : MonoBehaviour
     private void OnFishHooked()
     {
         Debug.Log("✅ BiteController: Риба підсічена!");
-        fishingController.IsHooked = true;
-        fishingController.IsBiting = false;
+        fishingController.SetHooked(true);
+        fishingController.SetFishBiting(false);
 
         var pullMonitor = new BitePullMonitor(fishingController, pullTimeout, OnFishLost);
         pullMonitorCoroutine = StartCoroutine(pullMonitor.Monitor());
@@ -82,14 +82,14 @@ public class BiteController : MonoBehaviour
     private void OnBiteMissed()
     {
         Debug.Log("❌ BiteController: Гравець не встиг підсікти");
-        fishingController.IsBiting = false;
+        fishingController.SetFishBiting(false);
         TryRebite();
     }
 
     private void OnFishLost()
     {
         Debug.Log("🐟 BiteController: Риба втрачена через бездіяльність");
-        fishingController.IsHooked = false;
+        fishingController.SetHooked(false);
 
         TryRebite();
     }
@@ -113,7 +113,7 @@ public class BiteController : MonoBehaviour
     
     private void NotifyFishEscaped()
     {
-        var session = fishingController?.FishingService?.GetCurrentSession();
+        var session = fishingController.sessionManager.CurrentSession;
         session?.CompleteFishing(FishingResult.MissedBite);
     }
 }

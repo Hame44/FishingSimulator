@@ -15,11 +15,11 @@ public partial class FishingLogic
     {
         if (controller.IsFloatCast) yield break;
         
-        controller.UIManager.UpdateStatusText("cast");
+        // controller.UIManager.UpdateStatusText("cast");
         controller.SetFloatCast(true);
         
         // Запускаємо анімацію закидання
-        yield return controller.StartCoroutine(controller.Animator.CastAnimation());
+        yield return controller.StartCoroutine(controller.FloatAnimation.CastAnimation());
         
         // Ініціалізуємо сесію риболовлі
         StartFishingSession();
@@ -27,15 +27,15 @@ public partial class FishingLogic
         // Запускаємо базове покачування поплавка
         StartFloatBobbing();
         
-        controller.UIManager.UpdateStatusText("waiting");
-        controller.UIManager.UpdateButtonStates();
+        // controller.UIManager.UpdateStatusText("waiting");
+        // controller.UIManager.UpdateButtonStates();
         
         Debug.Log("🎣 Вудка закинута! Очікування риби...");
     }
     
     public void PullLine()
     {
-        var session = controller.FishingService?.GetCurrentSession();
+        var session = controller.sessionManager?.CurrentSession;
         
         if (controller.IsHooked && session?.State == FishingState.Fighting)
         {
@@ -55,7 +55,7 @@ public partial class FishingLogic
 
     public void Hook()
     {
-        var session = controller.FishingService?.GetCurrentSession();
+        var session = controller.sessionManager?.CurrentSession;
         
         if (session == null)
         {
@@ -74,7 +74,7 @@ public partial class FishingLogic
 
     public void UpdateGameLogic()
     {
-        var session = controller.FishingService?.GetCurrentSession();
+        var session = controller.sessionManager?.CurrentSession;
         if (session == null) return;
         
         UpdateSessionState(session);
@@ -104,7 +104,7 @@ public partial class FishingLogic
         if (controller.CurrentState != session.State)
         {
             controller.SetCurrentState(session.State);
-            controller.UIManager.UpdateButtonStates();
+            // controller.UIManager.UpdateButtonStates();
             
             UpdateBitingState(session);
         }
@@ -116,11 +116,11 @@ public partial class FishingLogic
         bool isBiting = session.State == FishingState.Biting;
         controller.SetFishBiting(isBiting);
         
-        if (!wasBiting && isBiting)
-        {
-            controller.UIManager.UpdateStatusText("biting");
-            controller.VisualEffects.PlayBiteEffect();
-        }
+        // if (!wasBiting && isBiting)
+        // {
+        //     controller.UIManager.UpdateStatusText("biting");
+        //     controller.VisualEffects.PlayBiteEffect();
+        // }
     }
     
     private void HandleActiveFighting(FishingSession session)

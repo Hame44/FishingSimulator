@@ -6,14 +6,14 @@ public partial class FishingLogic
     
     private void PullFish()
     {
-        var session = controller.FishingService?.GetCurrentSession();
+        var session = controller.sessionManager?.CurrentSession;
         if (session?.State != FishingState.Fighting || !controller.IsReeling) return;
         
         var fish = session.CurrentFish;
         if (fish == null) return;
         
         CalculatePullProgress(fish);
-        UpdateFishPosition();
+        // UpdateFishPosition();
         CheckCatchCompletion();
         
         // Логування прогресу
@@ -45,26 +45,26 @@ public partial class FishingLogic
         controller.SetCurrentFishDistance(Mathf.Max(0, newDistance));
     }
     
-    private void UpdateFishPosition()
-    {
-        if (controller.floatObject == null || controller.shore == null) return;
+    // private void UpdateFishPosition()
+    // {
+    //     if (controller.floatObject == null || controller.shore == null) return;
         
-        float distanceRatio = controller.CurrentFishDistance / controller.castDistance;
+    //     float distanceRatio = controller.CurrentFishDistance / controller.castDistance;
         
-        Vector3 startPos = controller.Animator.FloatTargetPosition;
-        Vector3 endPos = controller.shore.position;
-        Vector3 newFloatPosition = Vector3.Lerp(endPos, startPos, distanceRatio);
+    //     // Vector3 startPos = controller.FloatAnimation.FloatTargetPosition;
+    //     Vector3 endPos = controller.shore.position;
+    //     Vector3 newFloatPosition = Vector3.Lerp(endPos, startPos, distanceRatio);
         
-        // Ефект тремтіння під час боротьби
-        Vector3 fightOffset = new Vector3(
-            UnityEngine.Random.Range(-0.05f, 0.05f),
-            UnityEngine.Random.Range(-0.03f, 0.03f),
-            0
-        ) * controller.TensionLevel;
+    //     // Ефект тремтіння під час боротьби
+    //     Vector3 fightOffset = new Vector3(
+    //         UnityEngine.Random.Range(-0.05f, 0.05f),
+    //         UnityEngine.Random.Range(-0.03f, 0.03f),
+    //         0
+    //     ) * controller.TensionLevel;
         
-        controller.floatObject.transform.position = newFloatPosition + fightOffset;
-        controller.Animator.AnimateFighting(distanceRatio, controller.TensionLevel);
-    }
+    //     controller.floatObject.transform.position = newFloatPosition + fightOffset;
+    //     // controller.Animator.AnimateFighting(distanceRatio, controller.TensionLevel);
+    // }
     
     private void CheckCatchCompletion()
     {
@@ -76,14 +76,14 @@ public partial class FishingLogic
     
     private void CompleteCatch()
     {
-        var session = controller.FishingService.GetCurrentSession();
+        var session = controller.sessionManager?.CurrentSession;
         if (session != null)
         {
             session.CompleteFishing(FishingResult.Success);
         }
         
         controller.SetReeling(false);
-        controller.UIManager.UpdateStatusText("caught");
+        // controller.UIManager.UpdateStatusText("caught");
         StopFightSequence();
         controller.StartCoroutine(ResetAfterCompletion());
         
@@ -94,45 +94,45 @@ public partial class FishingLogic
     {
         while (ShouldContinueFight())
         {
-            controller.SetFightTimer(controller.FightTimer + Time.deltaTime);
-            UpdateTension();
-            controller.UIManager.UpdateProgressBar();
+            // controller.SetFightTimer(controller.FightTimer + Time.deltaTime);
+            // UpdateTension();
+            // controller.UIManager.UpdateProgressBar();
             
-            if (CheckLineBroken())
-            {
-                HandleLineBroken();
-                yield break;
-            }
+            // if (CheckLineBroken())
+            // {
+            //     HandleLineBroken();
+            //     yield break;
+            // }
             
             yield return null;
         }
         
-        HandleFightTimeout();
+        // HandleFightTimeout();
         controller.SetFightCoroutine(null);
     }
     
     private bool ShouldContinueFight()
     {
         return controller.IsReeling && 
-               controller.CurrentFishDistance > 0.1f && 
-               controller.FightTimer < controller.maxFightTime;
+               controller.CurrentFishDistance > 0.1f;
+            //    controller.FightTimer < controller.maxFightTime;
     }
     
-    private void UpdateTension()
-    {
-        var session = controller.FishingService.GetCurrentSession();
-        if (session?.CurrentFish == null) return;
+    // private void UpdateTension()
+    // {
+    //     var session = controller.sessionManager.CurrentSession;
+    //     if (session?.CurrentFish == null) return;
         
-        float fishStrength = session.CurrentFish.Strength;
-        float distanceFactor = controller.CurrentFishDistance / controller.castDistance;
-        float tension = (fishStrength * distanceFactor) / controller.CurrentPlayer.Strength;
-        controller.SetTensionLevel(Mathf.Clamp01(tension));
-    }
+    //     float fishStrength = session.CurrentFish.Strength;
+    //     // float distanceFactor = controller.CurrentFishDistance / controller.castDistance;
+    //     // float tension = (fishStrength * distanceFactor) / controller.CurrentPlayer.Strength;
+    //     // controller.SetTensionLevel(Mathf.Clamp01(tension));
+    // }
     
-    private bool CheckLineBroken()
-    {
-        return controller.TensionLevel > 0.9f && UnityEngine.Random.value < 0.02f;
-    }
+    // private bool CheckLineBroken()
+    // {
+    //     // return controller.TensionLevel > 0.9f && UnityEngine.Random.value < 0.02f;
+    // }
     
     private void StopFightSequence()
     {
@@ -143,35 +143,36 @@ public partial class FishingLogic
         }
         
         controller.SetReeling(false);
-        controller.UIManager.HideProgressBar();
+        // controller.UIManager.HideProgressBar();
     }
     
     private void HandleLineBroken()
     {
-        controller.UIManager.UpdateStatusText("Леска порвалась!");
+        // controller.UIManager.UpdateStatusText("Леска порвалась!");
         StopFightSequence();
         controller.StartCoroutine(ResetAfterCompletion());
     }
-    
-    private void HandleFightTimeout()
-    {
-        if (controller.FightTimer >= controller.maxFightTime)
-        {
-            controller.UIManager.UpdateStatusText("Час боротьби вийшов! Риба втекла...");
-            ReleaseFish();
-        }
-    }
-    
-    private void ReleaseFish()
-    {
-        var session = controller.FishingService.GetCurrentSession();
-        if (session != null)
-        {
-            session.CompleteFishing(FishingResult.FishEscaped);
-        }
-        
-        controller.UIManager.UpdateStatusText("escaped");
-        StopFightSequence();
-        controller.StartCoroutine(ResetAfterCompletion());
-    }
+
 }
+    
+    // private void HandleFightTimeout()
+    // {
+    //     if (controller.FightTimer >= controller.maxFightTime)
+    //     {
+    //         // controller.UIManager.UpdateStatusText("Час боротьби вийшов! Риба втекла...");
+    //         ReleaseFish();
+    //     }
+    // }
+    
+    // private void ReleaseFish()
+    // {
+    //     var session = controller.FishingService.GetCurrentSession();
+    //     if (session != null)
+    //     {
+    //         session.CompleteFishing(FishingResult.FishEscaped);
+    //     }
+        
+    //     controller.UIManager.UpdateStatusText("escaped");
+    //     StopFightSequence();
+    //     controller.StartCoroutine(ResetAfterCompletion());
+    // }

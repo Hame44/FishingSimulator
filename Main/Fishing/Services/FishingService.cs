@@ -49,7 +49,14 @@ public class FishingService : MonoBehaviour, IFishingService
         
         // Core Services
         sessionManager = new SessionManager();
-        fishSpawner = new FishSpawner(new FishFactoryProvider());
+
+        var spawnerObject = new GameObject("FishSpawner");
+        spawnerObject.transform.SetParent(transform);
+        var spawnerComponent = spawnerObject.AddComponent<FishSpawner>();
+        spawnerComponent.Initialize(new FishFactoryProvider());
+        fishSpawner = spawnerComponent;
+
+
         actionHandler = new PlayerActionHandler();
         resultHandler = new FishingResultHandler(playerRepository, fishRepository);
     }

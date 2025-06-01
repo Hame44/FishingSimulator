@@ -6,7 +6,7 @@ public partial class FishingLogic
     
     private IEnumerator ReelInEmptyLine()
     {
-        controller.UIManager.UpdateStatusText("Витягуємо порожню вудку...");
+        // controller.UIManager.UpdateStatusText("Витягуємо порожню вудку...");
         controller.SetReeling(true);
         
         float reelTime = 2f;
@@ -27,16 +27,16 @@ public partial class FishingLogic
         // Скидаємо стан
         ResetLineState();
         
-        controller.UIManager.UpdateStatusText("ready");
-        controller.UIManager.UpdateButtonStates();
+        // controller.UIManager.UpdateStatusText("ready");
+        // controller.UIManager.UpdateButtonStates();
         
         Debug.Log("🎣 Порожня вудка витягнута");
     }
     
     private void ResetLineState()
     {
-        controller.Animator.ResetFloat();
-        controller.VisualEffects.HideFishingLine();
+        controller.FloatAnimation.HideFloat();
+        // controller.VisualEffects.HideFishingLine();
         controller.SetReeling(false);
         controller.SetFloatCast(false);
     }

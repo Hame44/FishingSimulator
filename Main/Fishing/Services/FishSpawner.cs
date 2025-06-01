@@ -3,12 +3,19 @@ using System.Collections;
 
 public class FishSpawner : MonoBehaviour, IFishSpawner
 {
-    private readonly IFishFactoryProvider factoryProvider;
+    // private readonly IFishFactoryProvider factoryProvider;
+    private IFishFactoryProvider factoryProvider;
     private Coroutine spawnCoroutine;
     
-    public FishSpawner(IFishFactoryProvider factoryProvider)
+    // public FishSpawner(IFishFactoryProvider factoryProvider)
+    // {
+    //     this.factoryProvider = factoryProvider;
+    // }
+
+    public void Initialize(IFishFactoryProvider factoryProvider)
     {
         this.factoryProvider = factoryProvider;
+        Debug.Log("🔧 FishSpawner ініціалізовано");
     }
     
     public void StartSpawning()

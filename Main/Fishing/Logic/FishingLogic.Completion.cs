@@ -9,7 +9,7 @@ public partial class FishingLogic
         StopFightSequence();
         
         string message = completionState == FishingState.Caught ? "caught" : "escaped";
-        controller.UIManager.UpdateStatusText(message);
+        // controller.UIManager.UpdateStatusText(message);
         
         yield return controller.MediumDelay;
         yield return controller.StartCoroutine(ResetAfterCompletion());
@@ -17,16 +17,16 @@ public partial class FishingLogic
     
     private IEnumerator ResetAfterCompletion()
     {
-        controller.Animator.ResetFloat();
-        controller.VisualEffects.HideFishingLine();
+        controller.FloatAnimation.HideFloat();
+        // controller.VisualEffects.HideFishingLine();
         
         // Скидаємо всі стани
         ResetAllStates();
         
         yield return new WaitForSeconds(1f);
         
-        controller.UIManager.UpdateStatusText("ready");
-        controller.UIManager.UpdateButtonStates();
+        // controller.UIManager.UpdateStatusText("ready");
+        // controller.UIManager.UpdateButtonStates();
     }
     
     private void ResetAllStates()
@@ -36,8 +36,8 @@ public partial class FishingLogic
         controller.SetFishBiting(false);
         controller.SetFloatCast(false);
         controller.SetCurrentFishDistance(0f);
-        controller.SetFightTimer(0f);
-        controller.SetTensionLevel(0f);
+        // controller.SetFightTimer(0f);
+        // controller.SetTensionLevel(0f);
         
         // Зупиняємо всі корутіни
         if (controller.FloatBobCoroutine != null)

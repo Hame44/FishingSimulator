@@ -19,7 +19,7 @@ public class FloatAnimation
         HideFloat();
     }
     
-    private void SetupFloatStartPosition()
+    public void SetupFloatStartPosition()
     {
         if (controller.floatObject != null)
         {
@@ -29,7 +29,7 @@ public class FloatAnimation
         }
     }
     
-    private void HideFloat()
+    public void HideFloat()
     {
         if (controller.floatObject != null)
         {
@@ -37,7 +37,7 @@ public class FloatAnimation
         }
     }
     
-    private void ShowFloat()
+    public void ShowFloat()
     {
         controller.floatObject.SetActive(true);
         controller.SetFloatCast(true);
@@ -69,7 +69,7 @@ public class FloatAnimation
     }
 
 
-    private IEnumerator BiteAnimation(float biteSpeed, float biteDuration)
+    public IEnumerator BiteAnimation(float biteSpeed, float biteDuration)
     {
         float elapsed = 0f;
         Vector3 floatBasePosition = controller.floatObject.transform.position;
@@ -96,6 +96,52 @@ public class FloatAnimation
 
             yield return null;
         }
+    }
+
+
+        public IEnumerator CastAnimation()
+    {
+        if (controller.floatObject == null || controller.waterSurface == null) yield break;
+        
+        ShowFloat();
+        CalculateCastTarget();
+        
+        yield return controller.StartCoroutine(AnimateCastArc());
+        
+        SetFloatAtTarget();
+    }
+
+    public void CalculateCastTarget()
+    {
+        Vector3 castPosition = controller.waterSurface.position + 
+                              Vector3.right * controller.castDistance;
+        floatTargetPosition = castPosition;
+        floatBasePosition = castPosition;
+    }
+    
+    public IEnumerator AnimateCastArc()
+    {
+        float castTime = 1.5f;
+        float elapsed = 0f;
+        
+        while (elapsed < castTime)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / castTime;
+            float curveValue = controller.castCurve.Evaluate(progress);
+            
+            Vector3 currentPos = Vector3.Lerp(floatStartPosition, floatTargetPosition, curveValue);
+            currentPos.y += Mathf.Sin(curveValue * Mathf.PI) * 2f;
+            
+            controller.floatObject.transform.position = currentPos;
+            yield return null;
+        }
+    }
+
+    public void SetFloatAtTarget()
+    {
+        controller.floatObject.transform.position = floatTargetPosition;
+        floatBasePosition = floatTargetPosition;
     }
 
     public Vector3 FloatStartPosition => floatStartPosition;

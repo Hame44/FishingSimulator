@@ -22,13 +22,13 @@ public partial class FishingController : MonoBehaviour
     void Update()
     {
         fishingLogic.UpdateGameLogic();
-        visualEffects.UpdateVisualEffects();
-        uiManager.UpdateUI();
+        // visualEffects.UpdateVisualEffects();
+        // uiManager.UpdateUI();
     }
     
     void OnDestroy()
     {
-        CleanupSubscriptions();
+        // CleanupSubscriptions();
     }
     
     
@@ -40,7 +40,7 @@ public partial class FishingController : MonoBehaviour
         }
     }
     
-    public void HookingFish() => fishingLogic.HookingFish();
-    public void PullingLine() => fishingLogic.PullingLine();
+    public void HookingFish() => fishingLogic.Hook();
+    public void PullingLine() => fishingLogic.PullLine();
     
 }
