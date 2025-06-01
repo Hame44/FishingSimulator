@@ -19,7 +19,8 @@ public class BiteController : MonoBehaviour
     
     void Start()
     {
-        SubscribeToFishingEvents();
+        // Відкладаємо підписку до наступного фрейму, щоб всі компоненти встигли ініціалізуватися
+        StartCoroutine(DelayedSubscription());
     }
     
     void OnDestroy()
@@ -27,18 +28,50 @@ public class BiteController : MonoBehaviour
         UnsubscribeFromFishingEvents();
     }
     
+    private IEnumerator DelayedSubscription()
+    {
+        yield return null; // Чекаємо один фрейм
+        SubscribeToFishingEvents();
+    }
+    
     private void SubscribeToFishingEvents()
     {
-        var session = fishingController.sessionManager.CurrentSession;
-        if (session != null)
+        if (fishingController?.sessionManager?.CurrentSession != null)
         {
-            session.OnFishBite += StartBite; // Підписуємося на появу риби
+            var session = fishingController.sessionManager.CurrentSession;
+            session.OnFishBite += StartBite;
+            Debug.Log("🔔 BiteController підписався на події");
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ BiteController: sessionManager або CurrentSession недоступні");
+            // Спробуємо підписатися пізніше
+            StartCoroutine(RetrySubscription());
+        }
+    }
+    
+    private IEnumerator RetrySubscription()
+    {
+        int attempts = 0;
+        while (attempts < 10 && (fishingController?.sessionManager?.CurrentSession == null))
+        {
+            yield return new WaitForSeconds(0.5f);
+            attempts++;
+        }
+        
+        if (fishingController?.sessionManager?.CurrentSession != null)
+        {
+            SubscribeToFishingEvents();
+        }
+        else
+        {
+            Debug.LogError("❌ BiteController: Не вдалося підписатися на події після 10 спроб");
         }
     }
     
     private void UnsubscribeFromFishingEvents()
     {
-        var session = fishingController.sessionManager.CurrentSession;
+        var session = fishingController?.sessionManager?.CurrentSession;
         if (session != null)
         {
             session.OnFishBite -= StartBite;
@@ -90,7 +123,6 @@ public class BiteController : MonoBehaviour
     {
         Debug.Log("🐟 BiteController: Риба втрачена через бездіяльність");
         fishingController.SetHooked(false);
-
         TryRebite();
     }
 
@@ -98,22 +130,28 @@ public class BiteController : MonoBehaviour
     {
         StopAllCoroutines();
 
-        var rebiteHandler = new BiteRebiteHandler(
-            currentBiteBehavior,
-            () => StartBite(currentFish), // Та ж риба клює знову
-            () => {
-                Debug.Log("💨 BiteController: Риба остаточно втекла");
-                // Повідомляємо FishingService що ця риба втекла
-                NotifyFishEscaped();
-            }
-        );
+        if (currentBiteBehavior != null)
+        {
+            var rebiteHandler = new BiteRebiteHandler(
+                currentBiteBehavior,
+                () => StartBite(currentFish),
+                () => {
+                    Debug.Log("💨 BiteController: Риба остаточно втекла");
+                    NotifyFishEscaped();
+                }
+            );
 
-        StartCoroutine(rebiteHandler.TryRebite());
+            StartCoroutine(rebiteHandler.TryRebite());
+        }
+        else
+        {
+            NotifyFishEscaped();
+        }
     }
     
     private void NotifyFishEscaped()
     {
-        var session = fishingController.sessionManager.CurrentSession;
+        var session = fishingController?.sessionManager?.CurrentSession;
         session?.CompleteFishing(FishingResult.MissedBite);
     }
 }
