@@ -6,10 +6,10 @@ public partial class FishingController
 {
     private FishingService fishingService;
     private Player currentPlayer;
-    private FishingAnimator fishingAnimator;
-    private FishingUIManager uiManager;
+    // private FishingAnima fishingAnimator;
+    // private FishingUIManager uiManager;
     private FishingLogic fishingLogic;
-    private FishingVisualEffects visualEffects;
+    // private FishingVisualEffects visualEffects;
     
     public FishingState CurrentState { get; private set; }
     public bool IsFloatCast { get; private set; }
@@ -28,9 +28,9 @@ public partial class FishingController
     
     public FishingService FishingService => fishingService;
     public Player CurrentPlayer => currentPlayer;
-    public FishingAnimator Animator => fishingAnimator;
-    public FishingUIManager UIManager => uiManager;
-    public FishingVisualEffects VisualEffects => visualEffects;
+    // public FishingAnimator Animator => fishingAnimator;
+    // public FishingUIManager UIManager => uiManager;
+    // public FishingVisualEffects VisualEffects => visualEffects;
     public Coroutine FightCoroutine => fightCoroutine;
     public Coroutine FloatBobCoroutine => floatBobCoroutine;
 

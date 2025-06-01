@@ -3,7 +3,6 @@ using System.Collections;
 
 public partial class FishingLogic
 {
-    #region Hook Actions
     
     private void HandleHookAction(FishingSession session)
     {

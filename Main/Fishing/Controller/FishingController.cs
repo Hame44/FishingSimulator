@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 // TODO: натяг волосіні ( зверху slide bar)
-public class FishingController : MonoBehaviour
+public partial class FishingController : MonoBehaviour
 {
     
     void Awake()
