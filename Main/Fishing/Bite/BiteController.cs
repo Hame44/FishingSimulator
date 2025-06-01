@@ -4,7 +4,7 @@ using System.Collections;
 public class BiteController : MonoBehaviour
 {
     [SerializeField] private FishingController fishingController;
-    [SerializeField] private FloatAnimation floatAnimation;
+    // ВИДАЛЕНО: [SerializeField] private FloatAnimation floatAnimation; - НЕ ПОТРІБНО!
 
     [Header("Bite Settings")]
     [SerializeField] private float defaultBiteDuration = 3f;
@@ -17,19 +17,32 @@ public class BiteController : MonoBehaviour
     private Fish currentFish;
     private IBiteBehavior currentBiteBehavior;
     
+    // ДОДАНО: Властивість для отримання FloatAnimation
+    private FloatAnimation FloatAnimation => fishingController?.floatAnimation;
+    
     void Start()
     {
-        // Відкладаємо підписку, щоб переконатися що все ініціалізовано
         StartCoroutine(DelayedSubscription());
     }
     
     private IEnumerator DelayedSubscription()
     {
-        // Чекаємо поки все ініціалізується
         yield return new WaitForSeconds(0.5f);
         
-        SubscribeToFishingEvents();
+        // ДОДАНО: Перевірка чи все ініціалізовано
+        if (fishingController == null)
+        {
+            Debug.LogError("❌ BiteController: FishingController не встановлений в інспекторі!");
+            yield break;
+        }
         
+        if (FloatAnimation == null)
+        {
+            Debug.LogError("❌ BiteController: FloatAnimation не ініціалізований в FishingController!");
+            yield break;
+        }
+        
+        SubscribeToFishingEvents();
         Debug.Log("🔧 BiteController підписаний на події");
     }
     
@@ -40,21 +53,18 @@ public class BiteController : MonoBehaviour
     
     private void SubscribeToFishingEvents()
     {
-        // Підписуємося безпосередньо на SessionManager
         if (fishingController.sessionManager != null)
         {
             Debug.Log("✅ Підписка на події SessionManager");
-            // Створюємо підписку через SessionManager
             fishingController.sessionManager.OnStateChanged += HandleStateChanged;
         }
         
-        // Також підписуємося на Event Bus для отримання риби
         FishingEventBus.Instance.OnFishSpawned += HandleFishSpawned;
     }
     
     private void UnsubscribeFromFishingEvents()
     {
-        if (fishingController.sessionManager != null)
+        if (fishingController?.sessionManager != null)
         {
             fishingController.sessionManager.OnStateChanged -= HandleStateChanged;
         }
@@ -77,18 +87,14 @@ public class BiteController : MonoBehaviour
     {
         currentFish = fish;
         Debug.Log($"🐟 BiteController отримав рибу: {fish.FishType}");
-        
-        // Запускаємо клювання через деякий час
         StartCoroutine(DelayedBiteStart(fish));
     }
     
     private IEnumerator DelayedBiteStart(Fish fish)
     {
-        // Чекаємо рандомний час перед клюванням (1-3 секунди)
         float delay = Random.Range(1f, 3f);
         yield return new WaitForSeconds(delay);
         
-        // Перевіряємо чи можна клювати
         if (fishingController.IsFloatCast && 
             !fishingController.IsFishBiting && 
             !fishingController.IsHooked)
@@ -101,6 +107,13 @@ public class BiteController : MonoBehaviour
     {
         if (fish == null) return;
         
+        // ВИПРАВЛЕНО: Перевірка FloatAnimation
+        if (FloatAnimation == null)
+        {
+            Debug.LogError("❌ FloatAnimation відсутній! Не можу розпочати клювання!");
+            return;
+        }
+        
         currentFish = fish;
         currentBiteBehavior = fish.GetBiteBehavior();
         
@@ -111,7 +124,7 @@ public class BiteController : MonoBehaviour
         var inputHandler = new BiteInputHandler(fishingController);
         var sequence = new BiteSequence(
             fishingController,
-            floatAnimation,
+            FloatAnimation, // ВИПРАВЛЕНО: Використовуємо властивість
             currentFish,
             inputHandler,
             OnFishHooked,

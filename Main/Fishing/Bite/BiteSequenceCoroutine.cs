@@ -36,11 +36,12 @@ public class BiteSequence
         // float duration = currentFish.currentBiteBehavior?.BiteDuration ?? defaultDuration;
         float speed = defaultSpeed;
 
-        floatAnimation?.BiteBobbing(speed, duration);
+        // floatAnimation?.BiteBobbing(speed, duration);
 
         float timer = duration;
-
-        floatAnimation?.BiteBobbing(speed, duration);
+        // floatAnimation.BaseBobbing();
+        Debug.Log($"🎣 Клювання {fishingController==null} {floatAnimation==null}");
+        Coroutine bobbingCoroutine = fishingController.StartCoroutine(floatAnimation.BiteBobbing(speed, duration));
 
         Debug.Log($"🎣 Клювання розпочато на {duration:F1} секунд");
 
