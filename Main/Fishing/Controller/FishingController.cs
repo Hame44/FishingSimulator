@@ -21,7 +21,10 @@ public partial class FishingController : MonoBehaviour
     
     void Update()
     {
-        fishingLogic.UpdateGameLogic();
+        if (fishingLogic !=null)
+        {
+            fishingLogic.UpdateGameLogic();
+        }
         // visualEffects.UpdateVisualEffects();
         // uiManager.UpdateUI();
     }

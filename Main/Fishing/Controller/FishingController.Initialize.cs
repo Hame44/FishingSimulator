@@ -35,6 +35,49 @@ public partial class FishingController
         // Підписуємося на події FishingEventBus
         FishingEventBus.Instance.OnFishSpawned += HandleFishSpawned;
     }
+
+        private void SetupInitialState()
+    {
+        // Ініціалізуємо початкові позиції поплавка
+        if (floatAnimation != null)
+        {
+            floatAnimation.SetupFloatStartPosition();
+        }
+
+        // Налаштовуємо UI кнопки - ЦЕ КРИТИЧНО ВАЖЛИВО!
+        SetupUIButtons();
+        
+        CurrentState = FishingState.Ready;
+        
+        Debug.Log("✅ FishingController ініціалізовано повністю");
+    }
+
+    private void SetupUIButtons()
+    {
+        // Прив'язуємо кнопки до методів
+        if (castButton != null)
+        {
+            castButton.onClick.RemoveAllListeners();
+            castButton.onClick.AddListener(CastLine);
+            Debug.Log("🎯 Кнопка закиду налаштована");
+        }
+        else
+        {
+            Debug.LogError("⚠️ castButton не знайдена в Inspector! Поплавок не буде закидатися!");
+        }
+
+        if (hookPullButton != null)
+        {
+            hookPullButton.onClick.RemoveAllListeners();
+            hookPullButton.onClick.AddListener(HookingFish);
+        }
+
+        if (releaseButton != null)
+        {
+            releaseButton.onClick.RemoveAllListeners();
+            releaseButton.onClick.AddListener(PullingLine);
+        }
+    }
     
     private void HandleFishSpawned(Fish fish)
     {
@@ -50,8 +93,9 @@ public partial class FishingController
         float delay = UnityEngine.Random.Range(2f, 5f);
         yield return new WaitForSeconds(delay);
         
+        
         // Перевіряємо чи все ще можна клювати
-        if (IsFloatCast && !IsFishBiting && !IsHooked && sessionManager.CurrentSession != null)
+        if (IsFloatCast)
         {
             Debug.Log($"🎣 Риба {fish.FishType} починає клювати!");
             // sessionManager.CurrentSession.OnFishBite?.Invoke(fish);
@@ -71,10 +115,10 @@ public partial class FishingController
                serviceObject.AddComponent<FishingService>();
     }
     
-    private void SetupInitialState()
-    {
-        CurrentState = FishingState.Ready;
-    }
+    // private void SetupInitialState()
+    // {
+    //     CurrentState = FishingState.Ready;
+    // }
 
     private void CreatePlayer()
     {

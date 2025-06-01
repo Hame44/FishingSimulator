@@ -99,7 +99,7 @@ public class FloatAnimation
     }
 
 
-        public IEnumerator CastAnimation()
+    public IEnumerator CastAnimation()
     {
         if (controller.floatObject == null || controller.waterSurface == null) yield break;
         
