@@ -14,7 +14,7 @@ public partial class FishingController : MonoBehaviour
     void Start()
     {
         InitializeServices();
-        CreatePlayer();
+        // CreatePlayer();
         SetupInitialState();
         StartCoroutine(floatAnimation.BaseBobbing());
     }

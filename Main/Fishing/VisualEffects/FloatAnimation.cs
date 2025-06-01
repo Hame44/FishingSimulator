@@ -8,7 +8,7 @@ public class FloatAnimation
     private Vector3 floatTargetPosition;
     private Vector3 floatBasePosition;
     
-    public FishingAnimator(FishingController controller)
+    public FloatAnimation(FishingController controller)
     {
         this.controller = controller;
     }

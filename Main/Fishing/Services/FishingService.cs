@@ -1,9 +1,6 @@
 using UnityEngine;
 using System;
 
-/// <summary>
-/// Координатор сервісів риболовлі - тільки делегування
-/// </summary>
 public class FishingService : MonoBehaviour, IFishingService
 {
     private ISessionManager sessionManager;
