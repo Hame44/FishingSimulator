@@ -34,6 +34,12 @@ public class FishingSession
     public event Action<Fish> OnFishBite;
     public event Action<FishingResult, Fish> OnFishingComplete;
     public event Action<FishingState> OnStateChanged;
+
+
+    public void TriggerFishBite(Fish fish)
+    {
+        OnFishBite?.Invoke(fish); // ✅ Можна викликати зсередини класу
+    }    
     
     public void StartSession()
     {
@@ -68,6 +74,7 @@ public class FishingSession
         OnFishBite?.Invoke(fish);
         Debug.Log($"Fish is biting: {fish?.FishType}");
     }
+
     
     public bool TryHook()
     {

@@ -9,6 +9,11 @@ public class SessionManager : ISessionManager
     public event Action<FishingState> OnStateChanged;
     public event Action<FishingResult, Fish> OnFishingComplete;
     
+    public void NotifyFishBite(Fish fish)
+    {
+        CurrentSession?.TriggerFishBite(fish);
+    }
+
     public void StartSession(Player player)
     {
         CurrentPlayer = player;

@@ -26,11 +26,6 @@ public partial class FishingController : MonoBehaviour
         // uiManager.UpdateUI();
     }
     
-    void OnDestroy()
-    {
-        // CleanupSubscriptions();
-    }
-    
     
     public void CastLine()
     {
