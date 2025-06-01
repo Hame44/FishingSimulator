@@ -29,5 +29,4 @@ public partial class FishingController
     [Header("Fishing Parameters")]
     public float castDistance = 5f;
     public float pullSpeed = 2f;
-    public float maxFightTime = 30f;
 }

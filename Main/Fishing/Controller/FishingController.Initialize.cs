@@ -16,6 +16,7 @@ public partial class FishingController
         uiManager = new FishingUIManager(this);
         fishingLogic = new FishingLogic(this);
         visualEffects = new FishingVisualEffects(this);
+        floatAnimation = new FloatAnimation(this);
     }
     
     private void InitializeServices()
