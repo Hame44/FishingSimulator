@@ -17,6 +17,7 @@ public partial class FishingController
         
         // Ініціалізуємо SessionManager
         sessionManager = new SessionManager();
+        IsReeling = false;
         
         CreatePlayer();
     }
@@ -84,6 +85,7 @@ public partial class FishingController
         Debug.Log($"🐟 Риба {fish.FishType} з'явилася!");
         
         // Запускаємо клювання через невеликий проміжок часу
+        // StopCoroutine(fishingAnimator.BaseBobbing());
         StartCoroutine(DelayedBite(fish));
     }
     

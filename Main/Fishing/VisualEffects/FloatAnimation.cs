@@ -46,6 +46,7 @@ public class FloatAnimation
     
     public IEnumerator BiteBobbing(float biteSpeed, float biteDuration)
     {
+        Debug.Log($"Bite {controller.IsFloatCast} {controller.floatObject} {controller.IsReeling}");
         while (controller.IsFloatCast && controller.floatObject != null && !controller.IsReeling)
         {
             yield return controller.StartCoroutine(BiteAnimation(biteSpeed, biteDuration)); 
@@ -73,6 +74,7 @@ public class FloatAnimation
     {
         float elapsed = 0f;
         Vector3 floatBasePosition = controller.floatObject.transform.position;
+        Debug.Log($"Bite animation started at position: {floatBasePosition}");
 
         float directionX = (UnityEngine.Random.value > 0.5f) ? 1f : -1f;
         float directionY = (UnityEngine.Random.value > 0.5f) ? 1f : -1f;

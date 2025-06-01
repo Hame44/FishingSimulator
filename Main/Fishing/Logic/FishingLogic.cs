@@ -25,7 +25,7 @@ public partial class FishingLogic
         StartFishingSession();
         
         // Запускаємо базове покачування поплавка
-        StartFloatBobbing();
+        // StartFloatBobbing();
         
         // controller.UIManager.UpdateStatusText("waiting");
         // controller.UIManager.UpdateButtonStates();

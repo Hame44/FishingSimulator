@@ -36,6 +36,8 @@ public class BiteSequence
         // float duration = currentFish.currentBiteBehavior?.BiteDuration ?? defaultDuration;
         float speed = defaultSpeed;
 
+        floatAnimation?.BiteBobbing(speed, duration);
+
         float timer = duration;
 
         floatAnimation?.BiteBobbing(speed, duration);
