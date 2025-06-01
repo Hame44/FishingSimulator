@@ -4,6 +4,5 @@ public enum FishingAction
 {
     Cast,
     Hook,
-    Pull,
-    Release
+    Pull
 }
