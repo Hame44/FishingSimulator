@@ -16,7 +16,16 @@ public partial class FishingController
         floatAnimation = new FloatAnimation(this);
         
         // Ініціалізуємо SessionManager
-        sessionManager = new SessionManager();
+        // sessionManager = new SessionManager();
+            if (sessionManager == null)
+    {
+        sessionManager = GetComponent<SessionManager>();
+        if (sessionManager == null)
+        {
+            Debug.LogWarning("⚠️ SessionManager не знайдений на об'єкті! Створюємо новий...");
+            sessionManager = gameObject.AddComponent<SessionManager>();
+        }
+    }
         IsReeling = false;
         
         CreatePlayer();
@@ -28,6 +37,17 @@ public partial class FishingController
         fishingService = GetOrAddFishingService(serviceObject);
         
         // Підписуємося на події після ініціалізації сервісів
+        if (fishingService != null && sessionManager != null)
+    {
+        fishingService.SetSessionManager(sessionManager);
+        Debug.Log("✅ SessionManager переданий до FishingService");
+    }
+    else
+    {
+        Debug.LogError($"❌ Помилка ініціалізації: FishingService={fishingService != null}, SessionManager={sessionManager != null}");
+    }
+    
+    Debug.Log("✅ Сервіси ініціалізовано");
         SubscribeToServiceEvents();
     }
     
@@ -46,39 +66,32 @@ public partial class FishingController
         }
 
         // Налаштовуємо UI кнопки - ЦЕ КРИТИЧНО ВАЖЛИВО!
-        SetupUIButtons();
+        // SetupUIButtons();
         
         CurrentState = FishingState.Ready;
         
         Debug.Log("✅ FishingController ініціалізовано повністю");
     }
 
-    private void SetupUIButtons()
-    {
-        // Прив'язуємо кнопки до методів
-        if (castButton != null)
-        {
-            castButton.onClick.RemoveAllListeners();
-            castButton.onClick.AddListener(CastLine);
-            Debug.Log("🎯 Кнопка закиду налаштована");
-        }
-        else
-        {
-            Debug.LogError("⚠️ castButton не знайдена в Inspector! Поплавок не буде закидатися!");
-        }
+    // private void SetupUIButtons()
+    // {
+    //     // ЗМІНЕНО: Видаляємо налаштування кнопки закиду
+    //     // Закидання тепер відбувається по кліку миші через WaterClickHandler
+        
+    //     if (hookPullButton != null)
+    //     {
+    //         hookPullButton.onClick.RemoveAllListeners();
+    //         hookPullButton.onClick.AddListener(HookingFish);
+    //     }
 
-        if (hookPullButton != null)
-        {
-            hookPullButton.onClick.RemoveAllListeners();
-            hookPullButton.onClick.AddListener(HookingFish);
-        }
-
-        if (releaseButton != null)
-        {
-            releaseButton.onClick.RemoveAllListeners();
-            releaseButton.onClick.AddListener(PullingLine);
-        }
-    }
+    //     if (releaseButton != null)
+    //     {
+    //         releaseButton.onClick.RemoveAllListeners();
+    //         releaseButton.onClick.AddListener(PullingLine);
+    //     }
+        
+    //     Debug.Log("🎯 UI кнопки налаштовані (без кнопки закиду)");
+    // }
     
     private void HandleFishSpawned(Fish fish)
     {
@@ -128,13 +141,13 @@ public partial class FishingController
         { 
             Id = 1, 
             Name = "Рибалка",
-            Strength = 10f,
+            Strength = 100f,
             Experience = 0,
             Equipment = new Equipment
             {
                 RodDurability = 100f,
                 LineDurability = 100f,
-                LineLength = 10f,
+                LineLength = 100f,
                 FishingLuck = 1.2f
             }
         };

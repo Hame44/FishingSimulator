@@ -68,7 +68,7 @@ public partial class FishingLogic
     
     private void InitializeFightSequence()
     {
-        controller.SetCurrentFishDistance(controller.castDistance);
+        // controller.SetCurrentFishDistance(controller.castDistance);
         controller.SetReeling(true);
         // controller.SetFightTimer(0f);
         // controller.SetTensionLevel(0f);

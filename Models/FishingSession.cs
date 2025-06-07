@@ -61,19 +61,26 @@ public class FishingSession
     }
     
     public void SetFish(Fish fish)
+{
+    // ЗМІНЕНО: Дозволяємо встановлювати рибу в різних станах
+    if (State == FishingState.Waiting || State == FishingState.Biting || State == FishingState.Fighting)
     {
-        if (State != FishingState.Waiting)
-        {
-            Debug.LogWarning($"Cannot set fish in state: {State}");
-            return;
-        }
-        
         CurrentFish = fish;
-        State = FishingState.Biting;
-        OnStateChanged?.Invoke(State);
-        OnFishBite?.Invoke(fish);
-        Debug.Log($"Fish is biting: {fish?.FishType}");
+        Debug.Log($"✅ Fish встановлена в сесії: {fish?.FishType}, стан залишається: {State}");
+        
+        // ВИПРАВЛЕНО: Не змінюємо стан, якщо він вже Fighting
+        if (State == FishingState.Waiting)
+        {
+            State = FishingState.Biting;
+            OnStateChanged?.Invoke(State);
+            OnFishBite?.Invoke(fish);
+        }
     }
+    else
+    {
+        Debug.LogWarning($"❌ Cannot set fish in state: {State}");
+    }
+}
 
     
     public bool TryHook()

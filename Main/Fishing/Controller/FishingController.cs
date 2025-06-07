@@ -29,11 +29,18 @@ public partial class FishingController : MonoBehaviour
     }
     
     
-    public void CastLine()
+    // public void CastLine()
+    // {
+    //     if (!IsFloatCast && !fishingLogic.IsProcessingAction())
+    //     {
+    //         StartCoroutine(fishingLogic.CastLineCoroutine());
+    //     }
+    // }
+     public void CastToPosition(Vector3 position)
     {
         if (!IsFloatCast && !fishingLogic.IsProcessingAction())
         {
-            StartCoroutine(fishingLogic.CastLineCoroutine());
+            StartCoroutine(fishingLogic.CastToPositionCoroutine(position));
         }
     }
     

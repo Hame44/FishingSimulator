@@ -4,20 +4,20 @@ using System.Collections;
 public class BiteController : MonoBehaviour
 {
     [SerializeField] private FishingController fishingController;
-    // ВИДАЛЕНО: [SerializeField] private FloatAnimation floatAnimation; - НЕ ПОТРІБНО!
 
     [Header("Bite Settings")]
     [SerializeField] private float defaultBiteDuration = 3f;
     [SerializeField] private float defaultBiteSpeed = 1f;
-    [SerializeField] private float pullTimeout = 3f;
+    [SerializeField] private float pullTimeout = 4f; // 3-5 секунд без витягування
 
     private Coroutine biteSequenceCoroutine;
-    private Coroutine pullMonitorCoroutine;
+    // ВИДАЛЕНО: pullMonitorCoroutine - не потрібен
+    private Coroutine respawnCoroutine;
+    private Coroutine pullMonitorCoroutine; // ДОДАНО: новий монітор витягування
 
     private Fish currentFish;
     private IBiteBehavior currentBiteBehavior;
     
-    // ДОДАНО: Властивість для отримання FloatAnimation
     private FloatAnimation FloatAnimation => fishingController?.floatAnimation;
     
     void Start()
@@ -29,7 +29,6 @@ public class BiteController : MonoBehaviour
     {
         yield return new WaitForSeconds(0.5f);
         
-        // ДОДАНО: Перевірка чи все ініціалізовано
         if (fishingController == null)
         {
             Debug.LogError("❌ BiteController: FishingController не встановлений в інспекторі!");
@@ -49,13 +48,17 @@ public class BiteController : MonoBehaviour
     void OnDestroy()
     {
         UnsubscribeFromFishingEvents();
+        
+        if (respawnCoroutine != null)
+        {
+            StopCoroutine(respawnCoroutine);
+        }
     }
     
     private void SubscribeToFishingEvents()
     {
         if (fishingController.sessionManager != null)
         {
-            Debug.Log("✅ Підписка на події SessionManager");
             fishingController.sessionManager.OnStateChanged += HandleStateChanged;
         }
         
@@ -107,10 +110,9 @@ public class BiteController : MonoBehaviour
     {
         if (fish == null) return;
         
-        // ВИПРАВЛЕНО: Перевірка FloatAnimation
         if (FloatAnimation == null)
         {
-            Debug.LogError("❌ FloatAnimation відсутній! Не можу розпочати клювання!");
+            Debug.LogError("❌ FloatAnimation відсутній!");
             return;
         }
         
@@ -121,12 +123,11 @@ public class BiteController : MonoBehaviour
         
         StopAllCoroutines();
         
-        var inputHandler = new BiteInputHandler(fishingController);
+        // ЗМІНЕНО: Видалено BiteInputHandler з конструктора
         var sequence = new BiteSequence(
             fishingController,
-            FloatAnimation, // ВИПРАВЛЕНО: Використовуємо властивість
+            FloatAnimation,
             currentFish,
-            inputHandler,
             OnFishHooked,
             OnBiteMissed
         );
@@ -140,8 +141,34 @@ public class BiteController : MonoBehaviour
         fishingController.SetHooked(true);
         fishingController.SetFishBiting(false);
 
-        var pullMonitor = new BitePullMonitor(fishingController, pullTimeout, OnFishLost);
-        pullMonitorCoroutine = StartCoroutine(pullMonitor.Monitor());
+            var session = fishingController.sessionManager?.CurrentSession;
+        if (session != null)
+    {
+        // ДОДАНО: Перевіряємо і встановлюємо рибу якщо потрібно
+        if (session.CurrentFish == null && currentFish != null)
+        {
+            Debug.Log($"🔧 Встановлюємо рибу в сесії: {currentFish.FishType}");
+            session.SetFish(currentFish);
+        }
+        
+        // ВИПРАВЛЕНО: Використовуємо setState замість SetFish для зміни стану
+        if (session.State != FishingState.Fighting)
+        {
+            session.setState(FishingState.Fighting);
+            Debug.Log("🔧 Стан сесії встановлено в Fighting");
+        }
+        
+        Debug.Log($"🔧 Сесія після підсікання: стан={session.State}, риба={session.CurrentFish?.FishType}");
+    }
+    else
+    {
+        Debug.LogError("❌ Сесія відсутня при підсіканні!");
+    }
+
+         fishingController.SetCurrentFishDistance(100f); // Початкова дистанція
+
+        // ДОДАНО: Запускаємо новий монітор витягування
+        pullMonitorCoroutine = StartCoroutine(MonitorPulling());
     }
 
     private void OnBiteMissed()
@@ -151,10 +178,50 @@ public class BiteController : MonoBehaviour
         TryRebite();
     }
 
+    // ДОДАНО: Новий метод моніторингу витягування через ПКМ
+    private IEnumerator MonitorPulling()
+    {
+        float idleTimer = 0f;
+        
+        while (fishingController.IsHooked)
+        {
+            bool isPulling = Input.GetMouseButton(1); // ПКМ затиснуто
+            
+            if (isPulling)
+            {
+                // Витягуємо рибу
+                idleTimer = 0f;
+                fishingController.SetReeling(true);
+
+                fishingController.fishingLogic.PullFish();
+                
+                // Тут можна додати логіку витягування (зменшення дистанції до риби)
+                // Debug.Log("🎣 Витягуємо рибу...");
+            }
+            else
+            {
+                // ПКМ відпущено - риба не витягується
+                fishingController.SetReeling(false);
+                idleTimer += Time.deltaTime;
+                
+                // Якщо не витягуємо довше ніж pullTimeout - риба сходить
+                if (idleTimer >= pullTimeout)
+                {
+                    Debug.Log($"🐟 Риба сходить через бездіяльність ({pullTimeout}с)!");
+                    OnFishLost();
+                    yield break;
+                }
+            }
+
+            yield return null;
+        }
+    }
+
     private void OnFishLost()
     {
-        Debug.Log("🐟 BiteController: Риба втрачена через бездіяльність");
+        Debug.Log("🐟 BiteController: Риба втрачена");
         fishingController.SetHooked(false);
+        fishingController.SetReeling(false);
         TryRebite();
     }
 
@@ -165,18 +232,80 @@ public class BiteController : MonoBehaviour
         var rebiteHandler = new BiteRebiteHandler(
             currentBiteBehavior,
             () => StartBite(currentFish),
-            () => {
-                Debug.Log("💨 BiteController: Риба остаточно втекла");
-                NotifyFishEscaped();
-            }
+            OnFishEscapedFinal
         );
 
         StartCoroutine(rebiteHandler.TryRebite());
+    }
+
+    private void OnFishEscapedFinal()
+    {
+        Debug.Log("💨 BiteController: Риба остаточно втекла");
+        
+        NotifyFishEscaped();
+        StartFishRespawn();
+    }
+
+    private void StartFishRespawn()
+    {
+        if (!fishingController.IsFloatCast || fishingController.IsReeling)
+        {
+            Debug.Log("🚫 Поплавок не закинутий - респавн скасовано");
+            return;
+        }
+        
+        if (respawnCoroutine != null)
+        {
+            StopCoroutine(respawnCoroutine);
+        }
+        
+        respawnCoroutine = StartCoroutine(RespawnFishAfterDelay());
+    }
+    
+    private IEnumerator RespawnFishAfterDelay()
+    {
+        yield return new WaitForSeconds(0.1f);
+        
+        if (fishingController.IsFloatCast && 
+            !fishingController.IsFishBiting && 
+            !fishingController.IsHooked && 
+            !fishingController.IsReeling)
+        {
+            Debug.Log("🐟 Запускаємо респавн нової риби...");
+            RequestNewFishSpawn();
+        }
+        
+        respawnCoroutine = null;
+    }
+    
+    private void RequestNewFishSpawn()
+    {
+        var fishSpawner = FindObjectOfType<FishSpawner>();
+        
+        if (fishSpawner != null)
+        {
+            fishSpawner.ScheduleNextFish(0f);
+            Debug.Log("✅ Запит на новий спавн відправлено");
+        }
+        else
+        {
+            Debug.LogError("❌ FishSpawner не знайдено!");
+        }
     }
     
     private void NotifyFishEscaped()
     {
         var session = fishingController.sessionManager.CurrentSession;
         session?.CompleteFishing(FishingResult.MissedBite);
+    }
+
+    public void StopFishRespawn()
+    {
+        if (respawnCoroutine != null)
+        {
+            StopCoroutine(respawnCoroutine);
+            respawnCoroutine = null;
+            Debug.Log("🛑 Автоматичний респавн зупинено");
+        }
     }
 }

@@ -4,30 +4,32 @@ using System.Collections;
 public partial class FishingLogic
 {
     
-    private IEnumerator HandleCompletion(FishingState completionState)
+        private IEnumerator HandleCompletion(FishingState completionState)
     {
         StopFightSequence();
         
-        string message = completionState == FishingState.Caught ? "caught" : "escaped";
-        // controller.UIManager.UpdateStatusText(message);
+        string message = completionState == FishingState.Caught ? "🏆 Риба піймана!" : "💨 Риба втекла!";
+        Debug.Log(message);
         
         yield return controller.MediumDelay;
+        
+        // ЗМІНЕНО: Використовуємо нову анімацію повернення
+        yield return controller.StartCoroutine(controller.FloatAnimation.ReturnToShore());
         yield return controller.StartCoroutine(ResetAfterCompletion());
     }
     
     private IEnumerator ResetAfterCompletion()
     {
-        controller.FloatAnimation.HideFloat();
-        // controller.VisualEffects.HideFishingLine();
+        // Поплавок вже схований в ReturnToShore()
         
         // Скидаємо всі стани
         ResetAllStates();
         
         yield return new WaitForSeconds(1f);
         
-        // controller.UIManager.UpdateStatusText("ready");
-        // controller.UIManager.UpdateButtonStates();
+        Debug.Log("🎣 Готовий до нової риболовлі!");
     }
+    
     
     private void ResetAllStates()
     {

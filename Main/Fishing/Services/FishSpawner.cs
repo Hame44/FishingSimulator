@@ -37,13 +37,14 @@ public class FishSpawner : MonoBehaviour, IFishSpawner
     
     public void ScheduleNextFish(float delay)
     {
-        StopSpawning();
-        spawnCoroutine = StartCoroutine(DelayedSpawn(delay));
+    StopSpawning();
+    spawnCoroutine = StartCoroutine(DelayedSpawn(delay));
     }
     
     private IEnumerator SpawnFishWithRandomDelay()
     {
-        float spawnDelay = UnityEngine.Random.Range(5f, 25f);
+        // float spawnDelay = UnityEngine.Random.Range(5f, 25f);
+        float spawnDelay = UnityEngine.Random.Range(5f, 10f);
         Debug.Log($"🕐 Очікування риби: {spawnDelay:F1}с");
         
         yield return new WaitForSeconds(spawnDelay);
@@ -72,7 +73,7 @@ public class FishSpawner : MonoBehaviour, IFishSpawner
     
     private string SelectRandomFishType()
     {
-        return UnityEngine.Random.value < 0.7f ? "Carp" : "Perch";
+        return UnityEngine.Random.value < 0.4f ? "Carp" : "Perch";
     }
     
     private void NotifyFishSpawned(Fish fish)

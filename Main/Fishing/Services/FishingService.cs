@@ -48,7 +48,7 @@ public class FishingService : MonoBehaviour, IFishingService
         var fishRepository = new FishRepository("");
         
         // Core Services
-        sessionManager = new SessionManager();
+        // sessionManager = new SessionManager();
 
         var spawnerObject = new GameObject("FishSpawner");
         spawnerObject.transform.SetParent(transform);
@@ -60,6 +60,16 @@ public class FishingService : MonoBehaviour, IFishingService
         actionHandler = new PlayerActionHandler();
         resultHandler = new FishingResultHandler(playerRepository, fishRepository);
     }
+
+    public void SetSessionManager(ISessionManager sessionManager)
+{
+    this.sessionManager = sessionManager;
+    
+    // Підписуємося на події тільки після встановлення
+    SubscribeToEvents();
+    
+    Debug.Log("✅ SessionManager встановлений в FishingService");
+}
     
     private void SubscribeToEvents()
     {

@@ -6,8 +6,6 @@ public class BiteSequence
     private readonly FishingController fishingController;
     private readonly FloatAnimation floatAnimation;
     private readonly Fish currentFish;
-    // private readonly IBiteBehavior currentBiteBehavior;
-    private readonly BiteInputHandler inputHandler;
     private readonly System.Action onHooked;
     private readonly System.Action onMissed;
 
@@ -15,32 +13,25 @@ public class BiteSequence
         FishingController fishingController,
         FloatAnimation floatAnimation,
         Fish currentFish,
-        BiteInputHandler inputHandler,
         System.Action onHooked,
         System.Action onMissed)
     {
         this.fishingController = fishingController;
         this.floatAnimation = floatAnimation;
         this.currentFish = currentFish;
-        // this.currentBiteBehavior = this.currentFish?.GetBiteBehavior();
-        this.inputHandler = inputHandler;
         this.onHooked = onHooked;
         this.onMissed = onMissed;
     }
 
+    // ЗМІНЕНО: Спрощена логіка - тільки перевірка ПКМ
     public IEnumerator Run(float defaultDuration, float defaultSpeed)
     {
         fishingController.SetFishBiting(true);
         var biteBehavior = currentFish.GetBiteBehavior();
         float duration = biteBehavior?.BiteDuration ?? defaultDuration;
-        // float duration = currentFish.currentBiteBehavior?.BiteDuration ?? defaultDuration;
         float speed = defaultSpeed;
 
-        // floatAnimation?.BiteBobbing(speed, duration);
-
         float timer = duration;
-        // floatAnimation.BaseBobbing();
-        Debug.Log($"🎣 Клювання {fishingController==null} {floatAnimation==null}");
         Coroutine bobbingCoroutine = fishingController.StartCoroutine(floatAnimation.BiteBobbing(speed, duration));
 
         Debug.Log($"🎣 Клювання розпочато на {duration:F1} секунд");
@@ -49,7 +40,8 @@ public class BiteSequence
         {
             timer -= Time.deltaTime;
 
-            if (inputHandler.Check())
+            // ЗМІНЕНО: Тільки ПКМ для підсікання
+            if (Input.GetMouseButtonDown(1)) // ПКМ
             {
                 onHooked?.Invoke();
                 yield break;

@@ -11,26 +11,40 @@ public partial class FishingLogic
     }
     
 
-    public IEnumerator CastLineCoroutine()
+    // public IEnumerator CastLineCoroutine()
+    // {
+    //     if (controller.IsFloatCast) yield break;
+        
+    //     // controller.UIManager.UpdateStatusText("cast");
+    //     controller.SetFloatCast(true);
+        
+    //     // Запускаємо анімацію закидання
+    //     yield return controller.StartCoroutine(controller.FloatAnimation.CastAnimation());
+        
+    //     // Ініціалізуємо сесію риболовлі
+    //     StartFishingSession();
+        
+    //     // Запускаємо базове покачування поплавка
+    //     // StartFloatBobbing();
+        
+    //     // controller.UIManager.UpdateStatusText("waiting");
+    //     // controller.UIManager.UpdateButtonStates();
+        
+    //     Debug.Log("🎣 Вудка закинута! Очікування риби...");
+    // }
+        public IEnumerator CastToPositionCoroutine(Vector3 targetPosition)
     {
         if (controller.IsFloatCast) yield break;
         
-        // controller.UIManager.UpdateStatusText("cast");
         controller.SetFloatCast(true);
         
-        // Запускаємо анімацію закидання
-        yield return controller.StartCoroutine(controller.FloatAnimation.CastAnimation());
+        // Показуємо поплавок в цільовій позиції (без анімації поки що)
+        controller.FloatAnimation.ShowFloatAtPosition(targetPosition);
         
         // Ініціалізуємо сесію риболовлі
         StartFishingSession();
         
-        // Запускаємо базове покачування поплавка
-        // StartFloatBobbing();
-        
-        // controller.UIManager.UpdateStatusText("waiting");
-        // controller.UIManager.UpdateButtonStates();
-        
-        Debug.Log("🎣 Вудка закинута! Очікування риби...");
+        Debug.Log($"🎣 Поплавок закинуто в позицію: {targetPosition}");
     }
     
     public void PullLine()

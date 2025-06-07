@@ -8,9 +8,14 @@ public class FloatAnimation
     private Vector3 floatTargetPosition;
     private Vector3 floatBasePosition;
     
+    // ДОДАНО: Посилання на Collider2D для перевірки меж
+    private PolygonCollider2D waterCollider;
+    
     public FloatAnimation(FishingController controller)
     {
         this.controller = controller;
+        // Знаходимо водний колайдер
+        waterCollider = GameObject.FindObjectOfType<PolygonCollider2D>();
     }
     
     public void InitializeVisuals()
@@ -42,29 +47,81 @@ public class FloatAnimation
         controller.floatObject.SetActive(true);
         controller.SetFloatCast(true);
     }
+
+    public IEnumerator ReturnToShore()
+{
+    if (controller.floatObject == null || controller.shore == null) yield break;
     
+    Vector3 startPos = controller.floatObject.transform.position;
+    Vector3 endPos = controller.shore.position;
     
-    public IEnumerator BiteBobbing(float biteSpeed, float biteDuration)
+    float returnTime = 2f;
+    float elapsed = 0f;
+    
+    Debug.Log("🔄 Повертаємо поплавок до берега...");
+    
+    while (elapsed < returnTime)
     {
-        Debug.Log($"Bite {controller.IsFloatCast}, {controller.floatObject}, {controller.IsReeling}");
-        while (controller.IsFloatCast && controller.floatObject != null && !controller.IsReeling)
+        elapsed += Time.deltaTime;
+        float progress = elapsed / returnTime;
+        
+        Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+        controller.floatObject.transform.position = currentPos;
+        
+        yield return null;
+    }
+    
+    // Ховаємо поплавок після повернення
+    HideFloat();
+    Debug.Log("✅ Поплавок повернуто до берега");
+}
+
+
+    // ДОДАНО: Новий метод для показу поплавка в конкретній позиції
+    public void ShowFloatAtPosition(Vector3 position)
+    {
+        if (controller.floatObject != null)
         {
-            yield return controller.StartCoroutine(BiteAnimation(biteSpeed, biteDuration)); 
-            // yield return controller.ShortDelay;
+            controller.floatObject.transform.position = position;
+            floatBasePosition = position; // Встановлюємо базову позицію
+            controller.floatObject.SetActive(true);
+            controller.SetFloatCast(true);
+            
+            Debug.Log($"🎯 Поплавок показано в позиції: {position}");
         }
     }
 
-    public void StartBobbing(float speed, float duration)
-{
-    if (controller != null)
+    public IEnumerator BiteBobbing(float biteSpeed, float biteDuration)
     {
-        controller.StartCoroutine(BiteBobbing(speed, duration));
+        Debug.Log($"🎣 BiteBobbing почався: швидкість {biteSpeed}, тривалість {biteDuration:F1}с");
+        
+        if (controller.floatObject == null)
+        {
+            Debug.LogError("❌ FloatObject відсутній!");
+            yield break;
+        }
+        
+        yield return controller.StartCoroutine(BiteAnimation(biteSpeed, biteDuration));
+        
+        Debug.Log("✅ BiteBobbing завершено");
     }
-}
+
+    public void StartBobbing(float speed, float duration)
+    {
+        if (controller != null)
+        {
+            controller.StartCoroutine(BiteBobbing(speed, duration));
+        }
+    }
     
     public IEnumerator BaseBobbing()
     {
-        while (controller.IsFloatCast && controller.floatObject != null && !controller.IsReeling)
+        Debug.Log("🌊 BaseBobbing почався");
+        
+        while (controller.IsFloatCast && 
+               controller.floatObject != null && 
+               !controller.IsReeling &&
+               !controller.IsFishBiting)
         {
             float time = Time.time * controller.floatBobSpeed;
             float bobOffset = -Mathf.Abs(Mathf.Sin(time)) * controller.floatBobIntensity * 0.3f;
@@ -75,84 +132,75 @@ public class FloatAnimation
 
             yield return controller.ShortDelay;
         }
+        
+        Debug.Log("🛑 BaseBobbing зупинено");
     }
 
-
+    // ПЕРЕРОБАНО: BiteAnimation з використанням Collider2D
     public IEnumerator BiteAnimation(float biteSpeed, float biteDuration)
     {
+        if (controller.floatObject == null) yield break;
+        
         float elapsed = 0f;
-        Vector3 floatBasePosition = controller.floatObject.transform.position;
-        // Debug.Log($"Bite animation started at position: {floatBasePosition}");
+        Vector3 startBitePosition = controller.floatObject.transform.position;
+        
+        // Випадковий напрямок руху
+        Vector2 moveDirection = new Vector2(
+            UnityEngine.Random.Range(-1f, 1f),
+            UnityEngine.Random.Range(-1f, 1f)
+        ).normalized;
+        
+        float moveSpeed = biteSpeed * 0.3f;
+        
+        Debug.Log($"🎣 BiteAnimation: напрямок {moveDirection}");
 
-        float directionX = (UnityEngine.Random.value > 0.5f) ? 1f : -1f;
-        float directionY = (UnityEngine.Random.value > 0.5f) ? 1f : -1f;
+        Vector3 currentPosition = startBitePosition;
 
-        Vector2 moveDirection = new Vector2(directionX, directionY).normalized;
-
-        while (elapsed < biteDuration && controller.IsFishBiting && !controller.IsHooked)
+        while (elapsed < biteDuration && 
+               controller.IsFishBiting && 
+               !controller.IsHooked &&
+               controller.floatObject != null)
         {
             elapsed += Time.deltaTime;
-            float progress = elapsed / biteDuration;
-
-            Vector2 moveOffset = moveDirection * biteSpeed * elapsed;
-
-            float bobbing = Mathf.Sin(progress * Mathf.PI * 10) * controller.biteBobIntensity;
-
-            Vector3 newPos = floatBasePosition;
+            
+            // Рухаємося в поточному напрямку
+            Vector2 moveOffset = moveDirection * moveSpeed * Time.deltaTime;
+            Vector3 newPos = currentPosition;
             newPos.x += moveOffset.x;
-            newPos.y += moveOffset.y + bobbing;
+            newPos.y += moveOffset.y;
+            
+            // ЗМІНЕНО: Використовуємо Collider2D для перевірки меж
+            if (!IsPositionInWater(newPos))
+            {
+                Debug.Log($"🔄 Поплавок досяг межі води! Позиція: {newPos}");
+                
+                // Відбиваємо напрямок
+                moveDirection = -moveDirection;
+                
+                // Повертаємо до останньої валідної позиції
+                newPos = currentPosition;
+            }
 
             controller.floatObject.transform.position = newPos;
+            currentPosition = newPos;
 
             yield return null;
         }
+        
+        floatBasePosition = currentPosition;
+        Debug.Log($"✅ BiteAnimation завершено");
     }
 
-
-    public IEnumerator CastAnimation()
+    // ДОДАНО: Метод для перевірки чи позиція в межах води
+    private bool IsPositionInWater(Vector3 position)
     {
-        if (controller.floatObject == null || controller.waterSurface == null) yield break;
+        if (waterCollider == null) return true; // Якщо немає колайдера, дозволяємо рух
         
-        ShowFloat();
-        CalculateCastTarget();
-        
-        yield return controller.StartCoroutine(AnimateCastArc());
-        
-        SetFloatAtTarget();
+        return waterCollider.OverlapPoint(position);
     }
 
-    public void CalculateCastTarget()
-    {
-        Vector3 castPosition = controller.waterSurface.position + 
-                              Vector3.right * controller.castDistance;
-        floatTargetPosition = castPosition;
-        floatBasePosition = castPosition;
-    }
-    
-    public IEnumerator AnimateCastArc()
-    {
-        float castTime = 1.5f;
-        float elapsed = 0f;
-        
-        while (elapsed < castTime)
-        {
-            elapsed += Time.deltaTime;
-            float progress = elapsed / castTime;
-            float curveValue = controller.castCurve.Evaluate(progress);
-            
-            Vector3 currentPos = Vector3.Lerp(floatStartPosition, floatTargetPosition, curveValue);
-            currentPos.y += Mathf.Sin(curveValue * Mathf.PI) * 2f;
-            
-            controller.floatObject.transform.position = currentPos;
-            yield return null;
-        }
-    }
-
-    public void SetFloatAtTarget()
-    {
-        controller.floatObject.transform.position = floatTargetPosition;
-        floatBasePosition = floatTargetPosition;
-    }
+    // ВИДАЛЕНО: Старі методи CastAnimation, CalculateCastTarget, AnimateCastArc, SetFloatAtTarget
+    // Тепер не потрібні, бо поплавок одразу з'являється в цільовій позиції
 
     public Vector3 FloatStartPosition => floatStartPosition;
     public Vector3 FloatTargetPosition => floatTargetPosition;

@@ -4,7 +4,7 @@ using System.Collections;
 public partial class FishingLogic
 {
     
-    private void PullFish()
+        public void PullFish()
     {
         var session = controller.sessionManager?.CurrentSession;
         if (session?.State != FishingState.Fighting || !controller.IsReeling) return;
@@ -13,13 +13,13 @@ public partial class FishingLogic
         if (fish == null) return;
         
         CalculatePullProgress(fish);
-        // UpdateFishPosition();
+        UpdateFishPosition(); // ДОДАНО: Оновлюємо візуальну позицію поплавка
         CheckCatchCompletion();
         
         // Логування прогресу
         if (Time.time % 1f < 0.1f) // Кожну секунду
         {
-            float progress = (1f - controller.CurrentFishDistance / controller.castDistance) * 100f;
+            float progress = (100f - controller.CurrentFishDistance);
             Debug.Log($"🎣 Прогрес витягування: {progress:F0}% (дистанція: {controller.CurrentFishDistance:F1}м)");
         }
     }
@@ -45,26 +45,41 @@ public partial class FishingLogic
         controller.SetCurrentFishDistance(Mathf.Max(0, newDistance));
     }
     
-    // private void UpdateFishPosition()
-    // {
-    //     if (controller.floatObject == null || controller.shore == null) return;
-        
-    //     float distanceRatio = controller.CurrentFishDistance / controller.castDistance;
-        
-    //     // Vector3 startPos = controller.FloatAnimation.FloatTargetPosition;
-    //     Vector3 endPos = controller.shore.position;
-    //     Vector3 newFloatPosition = Vector3.Lerp(endPos, startPos, distanceRatio);
-        
-    //     // Ефект тремтіння під час боротьби
-    //     Vector3 fightOffset = new Vector3(
-    //         UnityEngine.Random.Range(-0.05f, 0.05f),
-    //         UnityEngine.Random.Range(-0.03f, 0.03f),
-    //         0
-    //     ) * controller.TensionLevel;
-        
-    //     controller.floatObject.transform.position = newFloatPosition + fightOffset;
-    //     // controller.Animator.AnimateFighting(distanceRatio, controller.TensionLevel);
-    // }
+    // ДОДАНО: Метод для візуального оновлення позиції поплавка
+    private void UpdateFishPosition()
+{
+    if (controller.floatObject == null || controller.shore == null) 
+    {
+        Debug.LogWarning("❌ floatObject або shore відсутні!");
+        return;
+    }
+    
+    // Отримуємо початкову позицію (де був закинутий поплавок)
+    Vector3 startPos = controller.FloatAnimation.FloatBasePosition;
+    Vector3 endPos = controller.shore.position;
+    
+    Debug.Log($"🔧 UpdateFishPosition: startPos={startPos}, endPos={endPos}");
+    
+    // Розраховуємо прогрес витягування (від 0 до 1)
+    float totalDistance = 100f;
+    float pullProgress = 1f - (controller.CurrentFishDistance / totalDistance);
+    pullProgress = Mathf.Clamp01(pullProgress);
+    
+    // Інтерполюємо позицію між початковою точкою і берегом
+    Vector3 newFloatPosition = Vector3.Lerp(startPos, endPos, pullProgress);
+    
+    // Ефект тремтіння під час боротьби з рибою
+    Vector3 fightOffset = new Vector3(
+        UnityEngine.Random.Range(-0.08f, 0.08f),
+        UnityEngine.Random.Range(-0.05f, 0.05f),
+        0
+    ) * (1f - pullProgress);
+    
+    Vector3 finalPosition = newFloatPosition + fightOffset;
+    controller.floatObject.transform.position = finalPosition;
+    
+    Debug.Log($"🎣 Поплавок переміщено: {finalPosition}, прогрес: {pullProgress * 100:F0}%, дистанція: {controller.CurrentFishDistance:F1}");
+}
     
     private void CheckCatchCompletion()
     {
@@ -83,11 +98,37 @@ public partial class FishingLogic
         }
         
         controller.SetReeling(false);
-        // controller.UIManager.UpdateStatusText("caught");
         StopFightSequence();
-        controller.StartCoroutine(ResetAfterCompletion());
+        
+        // ДОДАНО: Анімація завершення ловлі
+        controller.StartCoroutine(CompleteCatchAnimation());
         
         Debug.Log("🏆 Риба піймана!");
+    }
+    
+    // ДОДАНО: Анімація завершення ловлі
+    private IEnumerator CompleteCatchAnimation()
+    {
+        // Плавно переміщуємо поплавок до берега
+        Vector3 startPos = controller.floatObject.transform.position;
+        Vector3 endPos = controller.shore.position;
+        
+        float animationTime = 1.5f;
+        float elapsed = 0f;
+        
+        while (elapsed < animationTime)
+        {
+            elapsed += Time.deltaTime;
+            float progress = elapsed / animationTime;
+            
+            Vector3 currentPos = Vector3.Lerp(startPos, endPos, progress);
+            controller.floatObject.transform.position = currentPos;
+            
+            yield return null;
+        }
+        
+        // Завершуємо анімацію
+        yield return controller.StartCoroutine(ResetAfterCompletion());
     }
     
     private IEnumerator FightSequenceCoroutine()
