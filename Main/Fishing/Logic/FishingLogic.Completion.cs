@@ -3,30 +3,17 @@ using System.Collections;
 
 public partial class FishingLogic
 {
-    
-        private IEnumerator HandleCompletion(FishingState completionState)
+
+    private IEnumerator HandleCompletion(FishingState completionState)
     {
         StopFightSequence();
-        
-        string message = completionState == FishingState.Caught ? "🏆 Риба піймана!" : "💨 Риба втекла!";
-        Debug.Log(message);
-        
-        yield return controller.MediumDelay;
-        
-        yield return controller.StartCoroutine(controller.FloatAnimation.ReturnToShore());
-        yield return controller.StartCoroutine(ResetAfterCompletion());
-    }
-    
-    private IEnumerator ResetAfterCompletion()
-    {
+        controller.FloatAnimation.HideFloat();
+
         ResetAllStates();
-        
-        yield return new WaitForSeconds(1f);
-        
-        Debug.Log("🎣 Готовий до нової риболовлі!");
+        yield return null;
     }
-    
-    
+
+
     private void ResetAllStates()
     {
         controller.SetReeling(false);
@@ -34,8 +21,7 @@ public partial class FishingLogic
         controller.SetFishBiting(false);
         controller.SetFloatCast(false);
         controller.SetCurrentFishDistance(0f);
-        
-        // Зупиняємо всі корутіни
+
         if (controller.FloatBobCoroutine != null)
         {
             controller.StopCoroutine(controller.FloatBobCoroutine);

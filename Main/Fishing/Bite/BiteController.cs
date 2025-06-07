@@ -17,67 +17,67 @@ public class BiteController : MonoBehaviour
 
     private Fish currentFish;
     private IBiteBehavior currentBiteBehavior;
-    
+
     private FloatAnimation FloatAnimation => fishingController?.floatAnimation;
-    
+
     void Start()
     {
         StartCoroutine(DelayedSubscription());
     }
-    
+
     private IEnumerator DelayedSubscription()
     {
         yield return new WaitForSeconds(0.5f);
-        
+
         if (fishingController == null)
         {
             Debug.LogError("❌ BiteController: FishingController не встановлений в інспекторі!");
             yield break;
         }
-        
+
         if (FloatAnimation == null)
         {
             Debug.LogError("❌ BiteController: FloatAnimation не ініціалізований в FishingController!");
             yield break;
         }
-        
+
         SubscribeToFishingEvents();
         Debug.Log("🔧 BiteController підписаний на події");
     }
-    
+
     void OnDestroy()
     {
         UnsubscribeFromFishingEvents();
-        
+
         if (respawnCoroutine != null)
         {
             StopCoroutine(respawnCoroutine);
         }
     }
-    
+
     private void SubscribeToFishingEvents()
     {
         if (fishingController.sessionManager != null)
         {
             fishingController.sessionManager.OnStateChanged += HandleStateChanged;
         }
-        
+
         FishingEventBus.Instance.OnFishSpawned += HandleFishSpawned;
     }
-    
+
     private void UnsubscribeFromFishingEvents()
     {
         if (fishingController?.sessionManager != null)
         {
             fishingController.sessionManager.OnStateChanged -= HandleStateChanged;
         }
-        
+
         if (FishingEventBus.Instance != null)
         {
             FishingEventBus.Instance.OnFishSpawned -= HandleFishSpawned;
         }
     }
-    
+
     private void HandleStateChanged(FishingState state)
     {
         if (state == FishingState.Biting && currentFish != null)
@@ -85,44 +85,44 @@ public class BiteController : MonoBehaviour
             StartBite(currentFish);
         }
     }
-    
+
     private void HandleFishSpawned(Fish fish)
     {
         currentFish = fish;
         Debug.Log($"🐟 BiteController отримав рибу: {fish.FishType}");
         StartCoroutine(DelayedBiteStart(fish));
     }
-    
+
     private IEnumerator DelayedBiteStart(Fish fish)
     {
         float delay = Random.Range(1f, 3f);
         yield return new WaitForSeconds(delay);
-        
-        if (fishingController.IsFloatCast && 
-            !fishingController.IsFishBiting && 
+
+        if (fishingController.IsFloatCast &&
+            !fishingController.IsFishBiting &&
             !fishingController.IsHooked)
         {
             StartBite(fish);
         }
     }
-    
+
     public void StartBite(Fish fish)
     {
         if (fish == null) return;
-        
+
         if (FloatAnimation == null)
         {
             Debug.LogError("❌ FloatAnimation відсутній!");
             return;
         }
-        
+
         currentFish = fish;
         currentBiteBehavior = fish.GetBiteBehavior();
-        
+
         Debug.Log($"🎣 BiteController: Риба {fish.FishType} почала клювати!");
-        
+
         StopAllCoroutines();
-        
+
         var sequence = new BiteSequence(
             fishingController,
             FloatAnimation,
@@ -140,29 +140,29 @@ public class BiteController : MonoBehaviour
         fishingController.SetHooked(true);
         fishingController.SetFishBiting(false);
 
-            var session = fishingController.sessionManager?.CurrentSession;
+        var session = fishingController.sessionManager?.CurrentSession;
         if (session != null)
-    {
-        if (session.CurrentFish == null && currentFish != null)
         {
-            Debug.Log($"🔧 Встановлюємо рибу в сесії: {currentFish.FishType}");
-            session.SetFish(currentFish);
-        }
-        
-        if (session.State != FishingState.Fighting)
-        {
-            session.setState(FishingState.Fighting);
-            Debug.Log("🔧 Стан сесії встановлено в Fighting");
-        }
-        
-        Debug.Log($"🔧 Сесія після підсікання: стан={session.State}, риба={session.CurrentFish?.FishType}");
-    }
-    else
-    {
-        Debug.LogError("❌ Сесія відсутня при підсіканні!");
-    }
+            if (session.CurrentFish == null && currentFish != null)
+            {
+                Debug.Log($"🔧 Встановлюємо рибу в сесії: {currentFish.FishType}");
+                session.SetFish(currentFish);
+            }
 
-         fishingController.SetCurrentFishDistance(100f); // Початкова дистанція
+            if (session.State != FishingState.Fighting)
+            {
+                session.setState(FishingState.Fighting);
+                Debug.Log("🔧 Стан сесії встановлено в Fighting");
+            }
+
+            Debug.Log($"🔧 Сесія після підсікання: стан={session.State}, риба={session.CurrentFish?.FishType}");
+        }
+        else
+        {
+            Debug.LogError("❌ Сесія відсутня при підсіканні!");
+        }
+
+        fishingController.SetCurrentFishDistance(100f); // Початкова дистанція
 
         pullMonitorCoroutine = StartCoroutine(MonitorPulling());
     }
@@ -177,24 +177,24 @@ public class BiteController : MonoBehaviour
     private IEnumerator MonitorPulling()
     {
         float idleTimer = 0f;
-        
+
         while (fishingController.IsHooked)
         {
             bool isPulling = Input.GetMouseButton(1); // ПКМ затиснуто
-            
+
             if (isPulling)
             {
                 idleTimer = 0f;
                 fishingController.SetReeling(true);
 
                 fishingController.fishingLogic.PullFish();
-                
+
             }
             else
             {
                 fishingController.SetReeling(false);
                 idleTimer += Time.deltaTime;
-                
+
                 if (idleTimer >= pullTimeout)
                 {
                     Debug.Log($"🐟 Риба сходить через бездіяльність ({pullTimeout}с)!");
@@ -231,7 +231,7 @@ public class BiteController : MonoBehaviour
     private void OnFishEscapedFinal()
     {
         Debug.Log("💨 BiteController: Риба остаточно втекла");
-        
+
         NotifyFishEscaped();
         StartFishRespawn();
     }
@@ -243,35 +243,35 @@ public class BiteController : MonoBehaviour
             Debug.Log("🚫 Поплавок не закинутий - респавн скасовано");
             return;
         }
-        
+
         if (respawnCoroutine != null)
         {
             StopCoroutine(respawnCoroutine);
         }
-        
+
         respawnCoroutine = StartCoroutine(RespawnFishAfterDelay());
     }
-    
+
     private IEnumerator RespawnFishAfterDelay()
     {
         yield return new WaitForSeconds(0.1f);
-        
-        if (fishingController.IsFloatCast && 
-            !fishingController.IsFishBiting && 
-            !fishingController.IsHooked && 
+
+        if (fishingController.IsFloatCast &&
+            !fishingController.IsFishBiting &&
+            !fishingController.IsHooked &&
             !fishingController.IsReeling)
         {
             Debug.Log("🐟 Запускаємо респавн нової риби...");
             RequestNewFishSpawn();
         }
-        
+
         respawnCoroutine = null;
     }
-    
+
     private void RequestNewFishSpawn()
     {
         var fishSpawner = FindObjectOfType<FishSpawner>();
-        
+
         if (fishSpawner != null)
         {
             fishSpawner.ScheduleNextFish(0f);
@@ -282,7 +282,7 @@ public class BiteController : MonoBehaviour
             Debug.LogError("❌ FishSpawner не знайдено!");
         }
     }
-    
+
     private void NotifyFishEscaped()
     {
         var session = fishingController.sessionManager.CurrentSession;

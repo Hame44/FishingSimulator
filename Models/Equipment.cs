@@ -7,13 +7,13 @@ public class Equipment
     public float LineDurability { get; set; }
     public float LineLength { get; set; }
     public float FishingLuck { get; set; }
-    
+
     public void DamageRod(float damage)
     {
         RodDurability -= damage;
         if (RodDurability < 0) RodDurability = 0;
     }
-    
+
     public void DamageLine(float damage)
     {
         LineDurability -= damage;

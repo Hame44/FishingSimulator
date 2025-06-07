@@ -4,12 +4,12 @@ public interface ISessionManager
 {
     FishingSession CurrentSession { get; }
     Player CurrentPlayer { get; }
-    
+
     void StartSession(Player player);
     void StartNewSession();
     void EndSession();
     void ResetSession();
-    
+
     event Action<FishingState> OnStateChanged;
     event Action<FishingResult, Fish> OnFishingComplete;
     event Action<FishingSession> OnSessionStarted;

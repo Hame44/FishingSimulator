@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 
-public partial class FishingController 
+public partial class FishingController
 {
     private FishingService fishingService;
     private Player currentPlayer;
@@ -10,7 +10,7 @@ public partial class FishingController
     public FloatAnimation floatAnimation;
     private PlayerActionHandler playerActionHandler;
     public SessionManager sessionManager;
-    
+
     public FishingState CurrentState { get; private set; }
     public bool IsFloatCast { get; private set; }
     public bool IsFishBiting { get; private set; }
@@ -19,13 +19,13 @@ public partial class FishingController
     public bool IsFighting { get; private set; }
     public float CurrentFishDistance { get; private set; }
     public Vector3 FloatCastPosition { get; private set; }
-    
+
     private Coroutine fightCoroutine;
     private Coroutine floatBobCoroutine;
-    
+
     public WaitForSeconds ShortDelay { get; private set; }
     public WaitForSeconds MediumDelay { get; private set; }
-    
+
     public FishingService FishingService => fishingService;
     public Player CurrentPlayer => currentPlayer;
     public FishingLogic FishingLogic => fishingLogic;
