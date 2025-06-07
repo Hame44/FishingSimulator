@@ -15,8 +15,6 @@ public partial class FishingController
         fishingLogic = new FishingLogic(this);
         floatAnimation = new FloatAnimation(this);
         
-        // Ініціалізуємо SessionManager
-        // sessionManager = new SessionManager();
             if (sessionManager == null)
     {
         sessionManager = GetComponent<SessionManager>();
@@ -36,7 +34,6 @@ public partial class FishingController
         var serviceObject = FindOrCreateServiceObject();
         fishingService = GetOrAddFishingService(serviceObject);
         
-        // Підписуємося на події після ініціалізації сервісів
         if (fishingService != null && sessionManager != null)
     {
         fishingService.SetSessionManager(sessionManager);
@@ -53,67 +50,38 @@ public partial class FishingController
     
     private void SubscribeToServiceEvents()
     {
-        // Підписуємося на події FishingEventBus
         FishingEventBus.Instance.OnFishSpawned += HandleFishSpawned;
     }
 
         private void SetupInitialState()
     {
-        // Ініціалізуємо початкові позиції поплавка
         if (floatAnimation != null)
         {
             floatAnimation.SetupFloatStartPosition();
         }
-
-        // Налаштовуємо UI кнопки - ЦЕ КРИТИЧНО ВАЖЛИВО!
-        // SetupUIButtons();
         
         CurrentState = FishingState.Ready;
         
         Debug.Log("✅ FishingController ініціалізовано повністю");
     }
 
-    // private void SetupUIButtons()
-    // {
-    //     // ЗМІНЕНО: Видаляємо налаштування кнопки закиду
-    //     // Закидання тепер відбувається по кліку миші через WaterClickHandler
-        
-    //     if (hookPullButton != null)
-    //     {
-    //         hookPullButton.onClick.RemoveAllListeners();
-    //         hookPullButton.onClick.AddListener(HookingFish);
-    //     }
-
-    //     if (releaseButton != null)
-    //     {
-    //         releaseButton.onClick.RemoveAllListeners();
-    //         releaseButton.onClick.AddListener(PullingLine);
-    //     }
-        
-    //     Debug.Log("🎯 UI кнопки налаштовані (без кнопки закиду)");
-    // }
     
     private void HandleFishSpawned(Fish fish)
     {
         Debug.Log($"🐟 Риба {fish.FishType} з'явилася!");
         
-        // Запускаємо клювання через невеликий проміжок часу
-        // StopCoroutine(fishingAnimator.BaseBobbing());
         StartCoroutine(DelayedBite(fish));
     }
     
     private IEnumerator DelayedBite(Fish fish)
     {
-        // Чекаємо 2-5 секунд перед початком клювання
         float delay = UnityEngine.Random.Range(2f, 5f);
         yield return new WaitForSeconds(delay);
         
         
-        // Перевіряємо чи все ще можна клювати
         if (IsFloatCast)
         {
             Debug.Log($"🎣 Риба {fish.FishType} починає клювати!");
-            // sessionManager.CurrentSession.OnFishBite?.Invoke(fish);
             sessionManager.NotifyFishBite(fish);
         }
     }
@@ -130,10 +98,6 @@ public partial class FishingController
                serviceObject.AddComponent<FishingService>();
     }
     
-    // private void SetupInitialState()
-    // {
-    //     CurrentState = FishingState.Ready;
-    // }
 
     private void CreatePlayer()
     {
@@ -155,7 +119,6 @@ public partial class FishingController
     
     void OnDestroy()
     {
-        // Відписуємося від подій
         if (FishingEventBus.Instance != null)
         {
             FishingEventBus.Instance.OnFishSpawned -= HandleFishSpawned;

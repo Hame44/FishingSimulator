@@ -30,13 +30,11 @@ public class WaterClickHandler : MonoBehaviour
 
     private void HandleWaterClick()
     {
-        // Перевіряємо чи поплавок не закинутий
         if (fishingController.IsFloatCast) return;
 
         Vector3 mouseWorldPos = mainCamera.ScreenToWorldPoint(Input.mousePosition);
         mouseWorldPos.z = 0f; // 2D координата
 
-        // Перевіряємо чи клік по воді
         if (IsPointInWater(mouseWorldPos))
         {
             Vector3 validPosition = GetValidFloatPosition(mouseWorldPos);
@@ -51,10 +49,8 @@ public class WaterClickHandler : MonoBehaviour
 
     private Vector3 GetValidFloatPosition(Vector3 clickPosition)
     {
-        // Отримуємо межі води
         Bounds waterBounds = waterCollider.bounds;
         
-        // Обмежуємо позицію з урахуванням радіуса поплавка
         float minX = waterBounds.min.x + floatRadius;
         float maxX = waterBounds.max.x - floatRadius;
         float minY = waterBounds.min.y + floatRadius;

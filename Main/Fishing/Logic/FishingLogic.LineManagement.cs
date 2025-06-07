@@ -24,11 +24,8 @@ public partial class FishingLogic
             yield return null;
         }
         
-        // Скидаємо стан
         ResetLineState();
         
-        // controller.UIManager.UpdateStatusText("ready");
-        // controller.UIManager.UpdateButtonStates();
         
         Debug.Log("🎣 Порожня вудка витягнута");
     }
@@ -36,7 +33,6 @@ public partial class FishingLogic
     private void ResetLineState()
     {
         controller.FloatAnimation.HideFloat();
-        // controller.VisualEffects.HideFishingLine();
         controller.SetReeling(false);
         controller.SetFloatCast(false);
     }

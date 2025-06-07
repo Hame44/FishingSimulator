@@ -8,13 +8,11 @@ public class FloatAnimation
     private Vector3 floatTargetPosition;
     private Vector3 floatBasePosition;
     
-    // ДОДАНО: Посилання на Collider2D для перевірки меж
     private PolygonCollider2D waterCollider;
     
     public FloatAnimation(FishingController controller)
     {
         this.controller = controller;
-        // Знаходимо водний колайдер
         waterCollider = GameObject.FindObjectOfType<PolygonCollider2D>();
     }
     
@@ -77,7 +75,6 @@ public class FloatAnimation
 }
 
 
-    // ДОДАНО: Новий метод для показу поплавка в конкретній позиції
     public void ShowFloatAtPosition(Vector3 position)
     {
         if (controller.floatObject != null)
@@ -136,7 +133,6 @@ public class FloatAnimation
         Debug.Log("🛑 BaseBobbing зупинено");
     }
 
-    // ПЕРЕРОБАНО: BiteAnimation з використанням Collider2D
     public IEnumerator BiteAnimation(float biteSpeed, float biteDuration)
     {
         if (controller.floatObject == null) yield break;
@@ -144,7 +140,6 @@ public class FloatAnimation
         float elapsed = 0f;
         Vector3 startBitePosition = controller.floatObject.transform.position;
         
-        // Випадковий напрямок руху
         Vector2 moveDirection = new Vector2(
             UnityEngine.Random.Range(-1f, 1f),
             UnityEngine.Random.Range(-1f, 1f)
@@ -163,21 +158,17 @@ public class FloatAnimation
         {
             elapsed += Time.deltaTime;
             
-            // Рухаємося в поточному напрямку
             Vector2 moveOffset = moveDirection * moveSpeed * Time.deltaTime;
             Vector3 newPos = currentPosition;
             newPos.x += moveOffset.x;
             newPos.y += moveOffset.y;
             
-            // ЗМІНЕНО: Використовуємо Collider2D для перевірки меж
             if (!IsPositionInWater(newPos))
             {
                 Debug.Log($"🔄 Поплавок досяг межі води! Позиція: {newPos}");
                 
-                // Відбиваємо напрямок
                 moveDirection = -moveDirection;
                 
-                // Повертаємо до останньої валідної позиції
                 newPos = currentPosition;
             }
 
@@ -191,7 +182,6 @@ public class FloatAnimation
         Debug.Log($"✅ BiteAnimation завершено");
     }
 
-    // ДОДАНО: Метод для перевірки чи позиція в межах води
     private bool IsPositionInWater(Vector3 position)
     {
         if (waterCollider == null) return true; // Якщо немає колайдера, дозволяємо рух
@@ -199,8 +189,6 @@ public class FloatAnimation
         return waterCollider.OverlapPoint(position);
     }
 
-    // ВИДАЛЕНО: Старі методи CastAnimation, CalculateCastTarget, AnimateCastArc, SetFloatAtTarget
-    // Тепер не потрібні, бо поплавок одразу з'являється в цільовій позиції
 
     public Vector3 FloatStartPosition => floatStartPosition;
     public Vector3 FloatTargetPosition => floatTargetPosition;

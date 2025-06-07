@@ -53,12 +53,10 @@ public partial class FishingLogic
         
         if (controller.IsHooked && session?.State == FishingState.Fighting)
         {
-            // Боротьба з рибою - делегуємо до Combat компонента
             PullFish();
         }
         else if (controller.IsFloatCast && session == null)
         {
-            // Витягуємо порожню лінію - делегуємо до LineManagement
             controller.StartCoroutine(ReelInEmptyLine());
         }
         else
@@ -77,7 +75,6 @@ public partial class FishingLogic
             return;
         }
         
-        // Делегуємо до HookActions компонента
         HandleHookAction(session);
     }
     
@@ -118,7 +115,6 @@ public partial class FishingLogic
         if (controller.CurrentState != session.State)
         {
             controller.SetCurrentState(session.State);
-            // controller.UIManager.UpdateButtonStates();
             
             UpdateBitingState(session);
         }
@@ -130,11 +126,6 @@ public partial class FishingLogic
         bool isBiting = session.State == FishingState.Biting;
         controller.SetFishBiting(isBiting);
         
-        // if (!wasBiting && isBiting)
-        // {
-        //     controller.UIManager.UpdateStatusText("biting");
-        //     controller.VisualEffects.PlayBiteEffect();
-        // }
     }
     
     private void HandleActiveFighting(FishingSession session)

@@ -16,7 +16,6 @@ public partial class FishingLogic
         UpdateFishPosition(); // ДОДАНО: Оновлюємо візуальну позицію поплавка
         CheckCatchCompletion();
         
-        // Логування прогресу
         if (Time.time % 1f < 0.1f) // Кожну секунду
         {
             float progress = (100f - controller.CurrentFishDistance);
@@ -45,7 +44,6 @@ public partial class FishingLogic
         controller.SetCurrentFishDistance(Mathf.Max(0, newDistance));
     }
     
-    // ДОДАНО: Метод для візуального оновлення позиції поплавка
     private void UpdateFishPosition()
 {
     if (controller.floatObject == null || controller.shore == null) 
@@ -54,18 +52,15 @@ public partial class FishingLogic
         return;
     }
     
-    // Отримуємо початкову позицію (де був закинутий поплавок)
     Vector3 startPos = controller.FloatAnimation.FloatBasePosition;
     Vector3 endPos = controller.shore.position;
     
     Debug.Log($"🔧 UpdateFishPosition: startPos={startPos}, endPos={endPos}");
     
-    // Розраховуємо прогрес витягування (від 0 до 1)
     float totalDistance = 100f;
     float pullProgress = 1f - (controller.CurrentFishDistance / totalDistance);
     pullProgress = Mathf.Clamp01(pullProgress);
     
-    // Інтерполюємо позицію між початковою точкою і берегом
     Vector3 newFloatPosition = Vector3.Lerp(startPos, endPos, pullProgress);
     
     // Ефект тремтіння під час боротьби з рибою
@@ -100,16 +95,13 @@ public partial class FishingLogic
         controller.SetReeling(false);
         StopFightSequence();
         
-        // ДОДАНО: Анімація завершення ловлі
         controller.StartCoroutine(CompleteCatchAnimation());
         
         Debug.Log("🏆 Риба піймана!");
     }
     
-    // ДОДАНО: Анімація завершення ловлі
     private IEnumerator CompleteCatchAnimation()
     {
-        // Плавно переміщуємо поплавок до берега
         Vector3 startPos = controller.floatObject.transform.position;
         Vector3 endPos = controller.shore.position;
         
@@ -135,15 +127,6 @@ public partial class FishingLogic
     {
         while (ShouldContinueFight())
         {
-            // controller.SetFightTimer(controller.FightTimer + Time.deltaTime);
-            // UpdateTension();
-            // controller.UIManager.UpdateProgressBar();
-            
-            // if (CheckLineBroken())
-            // {
-            //     HandleLineBroken();
-            //     yield break;
-            // }
             
             yield return null;
         }
@@ -156,24 +139,8 @@ public partial class FishingLogic
     {
         return controller.IsReeling && 
                controller.CurrentFishDistance > 0.1f;
-            //    controller.FightTimer < controller.maxFightTime;
     }
     
-    // private void UpdateTension()
-    // {
-    //     var session = controller.sessionManager.CurrentSession;
-    //     if (session?.CurrentFish == null) return;
-        
-    //     float fishStrength = session.CurrentFish.Strength;
-    //     // float distanceFactor = controller.CurrentFishDistance / controller.castDistance;
-    //     // float tension = (fishStrength * distanceFactor) / controller.CurrentPlayer.Strength;
-    //     // controller.SetTensionLevel(Mathf.Clamp01(tension));
-    // }
-    
-    // private bool CheckLineBroken()
-    // {
-    //     // return controller.TensionLevel > 0.9f && UnityEngine.Random.value < 0.02f;
-    // }
     
     private void StopFightSequence()
     {
@@ -184,36 +151,12 @@ public partial class FishingLogic
         }
         
         controller.SetReeling(false);
-        // controller.UIManager.HideProgressBar();
     }
     
     private void HandleLineBroken()
     {
-        // controller.UIManager.UpdateStatusText("Леска порвалась!");
         StopFightSequence();
         controller.StartCoroutine(ResetAfterCompletion());
     }
 
 }
-    
-    // private void HandleFightTimeout()
-    // {
-    //     if (controller.FightTimer >= controller.maxFightTime)
-    //     {
-    //         // controller.UIManager.UpdateStatusText("Час боротьби вийшов! Риба втекла...");
-    //         ReleaseFish();
-    //     }
-    // }
-    
-    // private void ReleaseFish()
-    // {
-    //     var session = controller.FishingService.GetCurrentSession();
-    //     if (session != null)
-    //     {
-    //         session.CompleteFishing(FishingResult.FishEscaped);
-    //     }
-        
-    //     controller.UIManager.UpdateStatusText("escaped");
-    //     StopFightSequence();
-    //     controller.StartCoroutine(ResetAfterCompletion());
-    // }

@@ -24,7 +24,6 @@ public partial class FishingLogic
                 break;
                 
             case FishingState.Fighting:
-                // Під час боротьби Hook означає одноразове тягнення
                 PullFish();
                 break;
                 
@@ -36,7 +35,6 @@ public partial class FishingLogic
     
     private void HandlePrematureHook()
     {
-        // controller.StartCoroutine(ShowTemporaryMessage("Передчасно! Чекайте поклювки...", 2f));
         Debug.Log("⏰ Передчасне підсікання!");
     }
     
@@ -46,9 +44,6 @@ public partial class FishingLogic
         {
             controller.SetHooked(true);
             controller.SetFishBiting(false);
-            // controller.VisualEffects.PlayHookEffect();
-            // controller.UIManager.UpdateStatusText("hooked");
-            // controller.UIManager.UpdateButtonStates();
             
             Debug.Log("🪝 Риба підсічена!");
         }
@@ -68,23 +63,10 @@ public partial class FishingLogic
     
     private void InitializeFightSequence()
     {
-        // controller.SetCurrentFishDistance(controller.castDistance);
         controller.SetReeling(true);
-        // controller.SetFightTimer(0f);
-        // controller.SetTensionLevel(0f);
-        
-        // controller.UIManager.ShowProgressBar();
-        // controller.UIManager.UpdateStatusText("fighting");
         
         var fightCoroutine = controller.StartCoroutine(FightSequenceCoroutine());
         controller.SetFightCoroutine(fightCoroutine);
     }
-    
-    // private IEnumerator ShowTemporaryMessage(string message, float duration)
-    // {
-    //     controller.UIManager.UpdateStatusText(message);
-    //     yield return new WaitForSeconds(duration);
-    //     controller.UIManager.UpdateStatusText("waiting");
-    // }
     
 }

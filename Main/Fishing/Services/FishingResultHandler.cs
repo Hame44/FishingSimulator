@@ -1,8 +1,5 @@
 using UnityEngine;
 
-/// <summary>
-/// Обробка результатів риболовлі та нагород (Single Responsibility)
-/// </summary>
 public class FishingResultHandler : IFishingResultHandler
 {
     private readonly IPlayerRepository playerRepository;
@@ -36,10 +33,8 @@ public class FishingResultHandler : IFishingResultHandler
     
     private void HandleSuccessfulCatch(Fish fish, Player player)
     {
-        // Зберігаємо улов
         SaveCaughtFish(fish, player);
         
-        // Нараховуємо нагороди
         var rewards = rewardCalculator.CalculateRewards(fish);
         ApplyRewards(player, rewards);
         

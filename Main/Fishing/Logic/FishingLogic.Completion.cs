@@ -13,16 +13,12 @@ public partial class FishingLogic
         
         yield return controller.MediumDelay;
         
-        // ЗМІНЕНО: Використовуємо нову анімацію повернення
         yield return controller.StartCoroutine(controller.FloatAnimation.ReturnToShore());
         yield return controller.StartCoroutine(ResetAfterCompletion());
     }
     
     private IEnumerator ResetAfterCompletion()
     {
-        // Поплавок вже схований в ReturnToShore()
-        
-        // Скидаємо всі стани
         ResetAllStates();
         
         yield return new WaitForSeconds(1f);
@@ -38,8 +34,6 @@ public partial class FishingLogic
         controller.SetFishBiting(false);
         controller.SetFloatCast(false);
         controller.SetCurrentFishDistance(0f);
-        // controller.SetFightTimer(0f);
-        // controller.SetTensionLevel(0f);
         
         // Зупиняємо всі корутіни
         if (controller.FloatBobCoroutine != null)

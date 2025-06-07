@@ -6,10 +6,7 @@ public partial class FishingController
 {
     private FishingService fishingService;
     private Player currentPlayer;
-    // private FishingAnima fishingAnimator;
-    // private FishingUIManager uiManager;
     public FishingLogic fishingLogic;
-    // private FishingVisualEffects visualEffects;
     public FloatAnimation floatAnimation;
     private PlayerActionHandler playerActionHandler;
     public SessionManager sessionManager;
@@ -32,12 +29,9 @@ public partial class FishingController
     public FishingService FishingService => fishingService;
     public Player CurrentPlayer => currentPlayer;
     public FishingLogic FishingLogic => fishingLogic;
-    // public FishingAnimator Animator => fishingAnimator;
     public FloatAnimation FloatAnimation => floatAnimation;
     public PlayerActionHandler PlayerActionHandler => playerActionHandler;
     public SessionManager SessionManager => sessionManager;
-    // public FishingUIManager UIManager => uiManager;
-    // public FishingVisualEffects VisualEffects => visualEffects;
     public Coroutine FightCoroutine => fightCoroutine;
     public Coroutine FloatBobCoroutine => floatBobCoroutine;
 

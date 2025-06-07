@@ -24,18 +24,8 @@ public partial class FishingController : MonoBehaviour
         {
             fishingLogic.UpdateGameLogic();
         }
-        // visualEffects.UpdateVisualEffects();
-        // uiManager.UpdateUI();
     }
     
-    
-    // public void CastLine()
-    // {
-    //     if (!IsFloatCast && !fishingLogic.IsProcessingAction())
-    //     {
-    //         StartCoroutine(fishingLogic.CastLineCoroutine());
-    //     }
-    // }
      public void CastToPosition(Vector3 position)
     {
         if (!IsFloatCast && !fishingLogic.IsProcessingAction())

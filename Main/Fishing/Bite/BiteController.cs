@@ -11,7 +11,7 @@ public class BiteController : MonoBehaviour
     [SerializeField] private float pullTimeout = 4f; // 3-5 секунд без витягування
 
     private Coroutine biteSequenceCoroutine;
-    // ВИДАЛЕНО: pullMonitorCoroutine - не потрібен
+
     private Coroutine respawnCoroutine;
     private Coroutine pullMonitorCoroutine; // ДОДАНО: новий монітор витягування
 
@@ -123,7 +123,6 @@ public class BiteController : MonoBehaviour
         
         StopAllCoroutines();
         
-        // ЗМІНЕНО: Видалено BiteInputHandler з конструктора
         var sequence = new BiteSequence(
             fishingController,
             FloatAnimation,
@@ -144,14 +143,12 @@ public class BiteController : MonoBehaviour
             var session = fishingController.sessionManager?.CurrentSession;
         if (session != null)
     {
-        // ДОДАНО: Перевіряємо і встановлюємо рибу якщо потрібно
         if (session.CurrentFish == null && currentFish != null)
         {
             Debug.Log($"🔧 Встановлюємо рибу в сесії: {currentFish.FishType}");
             session.SetFish(currentFish);
         }
         
-        // ВИПРАВЛЕНО: Використовуємо setState замість SetFish для зміни стану
         if (session.State != FishingState.Fighting)
         {
             session.setState(FishingState.Fighting);
@@ -167,7 +164,6 @@ public class BiteController : MonoBehaviour
 
          fishingController.SetCurrentFishDistance(100f); // Початкова дистанція
 
-        // ДОДАНО: Запускаємо новий монітор витягування
         pullMonitorCoroutine = StartCoroutine(MonitorPulling());
     }
 
@@ -178,7 +174,6 @@ public class BiteController : MonoBehaviour
         TryRebite();
     }
 
-    // ДОДАНО: Новий метод моніторингу витягування через ПКМ
     private IEnumerator MonitorPulling()
     {
         float idleTimer = 0f;
@@ -189,22 +184,17 @@ public class BiteController : MonoBehaviour
             
             if (isPulling)
             {
-                // Витягуємо рибу
                 idleTimer = 0f;
                 fishingController.SetReeling(true);
 
                 fishingController.fishingLogic.PullFish();
                 
-                // Тут можна додати логіку витягування (зменшення дистанції до риби)
-                // Debug.Log("🎣 Витягуємо рибу...");
             }
             else
             {
-                // ПКМ відпущено - риба не витягується
                 fishingController.SetReeling(false);
                 idleTimer += Time.deltaTime;
                 
-                // Якщо не витягуємо довше ніж pullTimeout - риба сходить
                 if (idleTimer >= pullTimeout)
                 {
                     Debug.Log($"🐟 Риба сходить через бездіяльність ({pullTimeout}с)!");

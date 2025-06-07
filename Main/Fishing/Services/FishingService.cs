@@ -43,12 +43,9 @@ public class FishingService : MonoBehaviour, IFishingService
     
     private void InitializeDependencies()
     {
-        // Repository Dependencies
         var playerRepository = new PlayerRepository("");
         var fishRepository = new FishRepository("");
         
-        // Core Services
-        // sessionManager = new SessionManager();
 
         var spawnerObject = new GameObject("FishSpawner");
         spawnerObject.transform.SetParent(transform);
@@ -65,7 +62,6 @@ public class FishingService : MonoBehaviour, IFishingService
 {
     this.sessionManager = sessionManager;
     
-    // Підписуємося на події тільки після встановлення
     SubscribeToEvents();
     
     Debug.Log("✅ SessionManager встановлений в FishingService");

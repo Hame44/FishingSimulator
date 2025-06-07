@@ -23,7 +23,6 @@ public class BiteSequence
         this.onMissed = onMissed;
     }
 
-    // ЗМІНЕНО: Спрощена логіка - тільки перевірка ПКМ
     public IEnumerator Run(float defaultDuration, float defaultSpeed)
     {
         fishingController.SetFishBiting(true);
@@ -40,7 +39,6 @@ public class BiteSequence
         {
             timer -= Time.deltaTime;
 
-            // ЗМІНЕНО: Тільки ПКМ для підсікання
             if (Input.GetMouseButtonDown(1)) // ПКМ
             {
                 onHooked?.Invoke();
